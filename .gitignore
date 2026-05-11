@@ -1,0 +1,35 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Build outputs (all submodules)
+**/build/
+
+# Gradle wrapper jar (optional, keep if you want reproducible builds)
+# gradle/wrapper/gradle-wrapper.jar
+
+# Android keystore / signing configs
+*.jks
+*.keystore
+keystore.properties
+
+# Google Services (contains API keys)
+google-services.json
+
+# Kotlin/Java compiled files
+*.class
+
+# OS
+Thumbs.db
