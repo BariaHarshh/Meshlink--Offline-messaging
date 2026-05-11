@@ -24,7 +24,7 @@ ksp {
 }
 
 dependencies {
-    implementation(project(":domain"))
+    implementation(project(":core:domain"))
 
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)

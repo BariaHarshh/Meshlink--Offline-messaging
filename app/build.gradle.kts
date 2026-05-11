@@ -50,10 +50,10 @@ android {
 }
 
 dependencies {
-    implementation(project(":domain"))
-    implementation(project(":data"))
-    implementation(project(":mesh"))
-    implementation(project(":crypto"))
+    implementation(project(":core:domain"))
+    implementation(project(":core:data"))
+    implementation(project(":core:mesh"))
+    implementation(project(":core:crypto"))
 
     // Compose
     implementation(platform(libs.compose.bom))

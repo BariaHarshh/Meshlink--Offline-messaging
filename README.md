@@ -91,45 +91,19 @@ UI (Compose) → ViewModel → Domain Repository Interface
 MeshLink/
 │
 ├── 📱 app/                          # Main application module
-│   └── src/main/java/.../ui/
-│       ├── broadcast/               # Broadcast feature (screen + viewmodel)
-│       ├── chat/                    # Chat feature (screen + viewmodel)
-│       ├── components/              # Shared reusable Compose components
-│       ├── discovery/               # Peer discovery (screen + viewmodel)
-│       ├── home/                    # Home screen (screen + viewmodel)
-│       ├── medical/                 # Medical profile (screen + viewmodel)
-│       ├── navigation/              # NavHost + Screen routes + BottomNavBar
-│       ├── sos/                     # SOS emergency screen
-│       └── theme/                   # Color, Typography, Theme
+│   └── src/main/java/.../ui/        # Feature-based UI components
 │
-├── 🧠 domain/                       # Business logic (no Android deps)
-│   └── src/main/java/.../domain/
-│       ├── model/                   # Data models (Message, Device, MeshPacket…)
-│       ├── repository/              # Repository interfaces
-│       └── usecase/                 # Use cases
+├── 🧠 core/                         # Core logic and data modules (New Grouping)
+│   ├── domain/                      # Business logic & pure models
+│   ├── data/                        # Room DB & Repository implementations
+│   ├── mesh/                        # Nearby Connections mesh layer
+│   └── crypto/                      # ECIES Encryption module
 │
-├── 🗄️ data/                         # Data layer (Room + Repository impls)
-│   └── src/main/java/.../data/
-│       ├── di/                      # Hilt modules (DatabaseModule, RepositoryModule)
-│       ├── local/
-│       │   ├── dao/                 # Room DAOs (MessageDao, DeviceDao, PendingMessageDao)
-│       │   └── entity/              # Room entities + mappers
-│       └── repository/              # Repository implementations
-│
-├── 📡 mesh/                         # Nearby Connections mesh layer
-│   └── src/main/java/.../mesh/
-│       ├── battery/                 # AdaptiveScanController
-│       ├── di/                      # Hilt module (NearbyModule)
-│       ├── repository/              # NearbyRepositoryImpl
-│       ├── routing/                 # MeshRouter, RoutingTable, SeenMessageCache
-│       └── util/                    # MeshPacketSerializer
-│
-├── 🔐 crypto/                       # Encryption module
-│   └── src/main/java/.../crypto/
-│       ├── cipher/                  # EciesService, EncryptionService
-│       ├── identity/                # KeyManager
-│       └── session/                 # HandshakeManager, SessionKeyStore
-│
+├── gradle/                          # Gradle config & version catalog
+├── build.gradle.kts                 # Root build script
+├── settings.gradle.kts              # Module declarations (includes :core: prefix)
+└── README.md
+
 ├── gradle/
 │   ├── libs.versions.toml           # Version catalog (single source of truth)
 │   └── wrapper/                     # Gradle wrapper

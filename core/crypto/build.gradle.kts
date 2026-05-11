@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.meshlink.app.mesh"
+    namespace = "com.meshlink.app.crypto"
     compileSdk = 36
 
     defaultConfig {
@@ -19,18 +19,16 @@ android {
 }
 
 dependencies {
-    implementation(project(":domain"))
-    implementation(project(":crypto"))   // Phase 3: encryption & identity
+    implementation(project(":core:domain"))
 
-    implementation(libs.play.services.nearby)
-
+    // Hilt DI
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
+    // Jetpack Security — EncryptedSharedPreferences wraps the private key
+    // with an AES-256-GCM master key stored inside Android Keystore
+    implementation(libs.androidx.security.crypto)
+
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.timber)
-
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.mockk)
 }

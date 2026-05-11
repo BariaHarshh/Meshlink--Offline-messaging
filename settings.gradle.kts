@@ -23,4 +23,8 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "MeshLink"
-include(":app", ":domain", ":data", ":mesh", ":crypto")
+include(":app")
+include(":core:domain")
+include(":core:data")
+include(":core:mesh")
+include(":core:crypto")
