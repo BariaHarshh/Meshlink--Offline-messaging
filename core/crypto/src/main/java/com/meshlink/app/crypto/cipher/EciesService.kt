@@ -1,6 +1,6 @@
 package com.meshlink.app.crypto.cipher
 
-import android.util.Base64
+import java.util.Base64
 import com.meshlink.app.crypto.identity.KeyManager
 import timber.log.Timber
 import java.security.KeyFactory
@@ -145,13 +145,13 @@ class EciesService @Inject constructor(
      * Returns Base64-encoded wire bytes ready to put into [MeshPacket.content].
      */
     fun encryptToBase64(plaintext: ByteArray, recipientPublicKeyBytes: ByteArray, aad: ByteArray? = null): String =
-        Base64.encodeToString(encrypt(plaintext, recipientPublicKeyBytes, aad), Base64.NO_WRAP)
+        Base64.getEncoder().encodeToString(encrypt(plaintext, recipientPublicKeyBytes, aad))
 
     /**
      * Convenience: decrypt from Base64-encoded [MeshPacket.content].
      */
     fun decryptFromBase64(base64Content: String, aad: ByteArray? = null): ByteArray? =
-        decrypt(Base64.decode(base64Content, Base64.NO_WRAP), aad)
+        decrypt(Base64.getDecoder().decode(base64Content), aad)
 
     // ── HKDF-SHA256 (RFC 5869) — same implementation as HandshakeManager ─────
 

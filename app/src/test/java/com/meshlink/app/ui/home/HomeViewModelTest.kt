@@ -58,7 +58,6 @@ class HomeViewModelTest {
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
         viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.conversations.test {
             assertTrue(awaitItem().isEmpty())
@@ -87,9 +86,9 @@ class HomeViewModelTest {
         every { deviceRepo.getAllDevices() }                    returns flowOf(listOf(device))
 
         viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.conversations.test {
+            assertEquals(emptyList<Conversation>(), awaitItem())
             val conversations = awaitItem()
             assertEquals(1, conversations.size)
             assertEquals("Alice", conversations[0].deviceName)
@@ -113,9 +112,9 @@ class HomeViewModelTest {
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
         viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.conversations.test {
+            assertEquals(emptyList<Conversation>(), awaitItem())
             val conversations = awaitItem()
             assertEquals(1, conversations.size)
             assertEquals("unknown-", conversations[0].deviceName)  // take(8)
@@ -132,9 +131,9 @@ class HomeViewModelTest {
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
         viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.conversations.test {
+            assertEquals(emptyList<Conversation>(), awaitItem())
             val conversations = awaitItem()
             assertEquals(2, conversations.size)
             assertTrue(conversations[0].timestamp > conversations[1].timestamp)
@@ -148,7 +147,6 @@ class HomeViewModelTest {
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
         viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.renameDevice("peer-id", "  Bob  ")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -170,10 +168,10 @@ class HomeViewModelTest {
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
         viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.peerCount.test {
-            assertEquals(2, awaitItem())  // only 2 CONNECTED, not CONNECTING
+            assertEquals(0, awaitItem()) // initial state
+            assertEquals(2, awaitItem()) // connected count
             cancelAndIgnoreRemainingEvents()
         }
     }

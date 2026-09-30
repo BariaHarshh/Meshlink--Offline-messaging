@@ -51,12 +51,12 @@ class SeenMessageCacheTest {
 
     @Test
     fun `cache evicts oldest entry when capacity exceeded`() {
-        // Fill capacity to exactly 1000
-        for (i in 0..999) {
+        // Fill capacity to exactly 2000
+        for (i in 0 until 2000) {
             cache.markSeen("msg-$i")
         }
         // Access every entry except msg-0 to make msg-0 the LRU
-        for (i in 1..999) {
+        for (i in 1 until 2000) {
             cache.isAlreadySeen("msg-$i")
         }
         // Adding one more entry should evict msg-0 (LRU)

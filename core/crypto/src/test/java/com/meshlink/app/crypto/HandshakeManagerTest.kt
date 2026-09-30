@@ -81,7 +81,7 @@ class HandshakeManagerTest {
         val sig = Signature.getInstance("SHA256withECDSA")
         sig.initSign(deviceBKp.private)
         sig.update(data)
-        sig.sign()
+        return sig.sign()
     }
 
     // ── 1. Valid handshake succeeds ──────────────────────────────────────────

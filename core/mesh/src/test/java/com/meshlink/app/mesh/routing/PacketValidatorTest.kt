@@ -161,7 +161,7 @@ class PacketValidatorTest {
     @Test
     fun `validatePacket - exactly MAX_ROUTE_HISTORY hops returns Valid`() {
         val maxHops = (1..PacketValidator.MAX_ROUTE_HISTORY).map { "node-$it" }
-        assertTrue(isValid(PacketValidator.validatePacket(validPacket(routeHistory = maxHops, hopCount = maxHops.size))))
+        assertTrue(isValid(PacketValidator.validatePacket(validPacket(routeHistory = maxHops, hopCount = maxHops.size, maxHops = maxHops.size))))
     }
 
     @Test
