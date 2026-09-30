@@ -29,6 +29,12 @@ dependencies {
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
 
+    // Phase 2: database encryption at rest
+    // net.zetetic:android-database-sqlcipher exposes net.sqlcipher.database.SupportFactory
+    // and net.sqlcipher.database.SQLiteDatabase used in DatabaseModule.
+    implementation("net.zetetic:android-database-sqlcipher:4.5.4")
+    implementation(libs.androidx.security.crypto)
+
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
@@ -39,4 +45,8 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.compiler)
+
+    testImplementation(libs.junit)
 }

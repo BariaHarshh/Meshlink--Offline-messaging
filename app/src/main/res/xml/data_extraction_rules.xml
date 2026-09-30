@@ -1,19 +1,40 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Phase 2 — Secure Local Storage: data extraction rules (Android 12+, API 31+).
+    Controls what is included in cloud backup and device-to-device transfer.
+
+    All MeshLink sensitive data is excluded:
+    - meshlink.db  : the encrypted SQLCipher database (messages, devices, pending queue)
+    - meshlink_db_key_v1 : DatabaseKeyManager passphrase in EncryptedSharedPreferences
+    - meshlink_identity_v1 : KeyManager identity key in EncryptedSharedPreferences
+
+    NOTE: EncryptedSharedPreferences keyed files must also be excluded because even
+    though the values are encrypted, restoring them to a different device would fail
+    to decrypt (the Keystore key is hardware-bound and non-exportable). Restoring
+    only the ciphertext without the Keystore key leaves an irrecoverable state.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Exclude the encrypted Room database and its WAL/SHM journal files -->
+        <exclude domain="database" path="meshlink.db" />
+        <exclude domain="database" path="meshlink.db-wal" />
+        <exclude domain="database" path="meshlink.db-shm" />
+        <exclude domain="database" path="meshlink.db-journal" />
+
+        <!-- Exclude Keystore-backed EncryptedSharedPreferences files.
+             These contain the database passphrase and the device identity key.
+             They are hardware-bound and cannot be restored to a different device. -->
+        <exclude domain="sharedpref" path="meshlink_db_key_v1.xml" />
+        <exclude domain="sharedpref" path="meshlink_identity_v1.xml" />
     </cloud-backup>
-    <!--
+
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Same exclusions apply for device-to-device transfer -->
+        <exclude domain="database" path="meshlink.db" />
+        <exclude domain="database" path="meshlink.db-wal" />
+        <exclude domain="database" path="meshlink.db-shm" />
+        <exclude domain="database" path="meshlink.db-journal" />
+        <exclude domain="sharedpref" path="meshlink_db_key_v1.xml" />
+        <exclude domain="sharedpref" path="meshlink_identity_v1.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>

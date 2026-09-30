@@ -1,13 +1,23 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Phase 2 — Secure Local Storage: Auto Backup rules (API 23–30).
+    Used for devices running Android 6–11 where data_extraction_rules.xml is not supported.
+
+    All MeshLink sensitive data is excluded from Auto Backup:
+    - meshlink.db  : encrypted SQLCipher database (messages, devices, pending queue)
+    - meshlink_db_key_v1 : DatabaseKeyManager passphrase in EncryptedSharedPreferences
+    - meshlink_identity_v1 : KeyManager identity key in EncryptedSharedPreferences
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Exclude the encrypted Room database and SQLite journal files -->
+    <exclude domain="database" path="meshlink.db" />
+    <exclude domain="database" path="meshlink.db-wal" />
+    <exclude domain="database" path="meshlink.db-shm" />
+    <exclude domain="database" path="meshlink.db-journal" />
+
+    <!-- Exclude Keystore-backed EncryptedSharedPreferences.
+         Even though values are encrypted, these files are hardware-bound
+         and cannot be decrypted after restoring to a different device. -->
+    <exclude domain="sharedpref" path="meshlink_db_key_v1.xml" />
+    <exclude domain="sharedpref" path="meshlink_identity_v1.xml" />
 </full-backup-content>
