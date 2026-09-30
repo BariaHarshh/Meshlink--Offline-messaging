@@ -54,6 +54,18 @@ class MeshRouter @Inject constructor(
 ) {
     companion object {
         private const val PENDING_TTL_MS = 48 * 60 * 60 * 1_000L  // 48 hours
+
+        /**
+         * Builds deterministic Additional Authenticated Data (AAD) binding security-sensitive
+         * routing metadata to the AEAD cipher context.
+         */
+        fun computeMetadataAad(
+            originId: String,
+            finalDestId: String,
+            messageId: String,
+            timestamp: Long
+        ): ByteArray =
+            "ROUTED_CHAT_AAD:$originId:$finalDestId:$messageId:$timestamp".toByteArray(Charsets.UTF_8)
     }
 
     // ── Incoming packet routing ───────────────────────────────────────────────
@@ -205,7 +217,13 @@ class MeshRouter @Inject constructor(
         val destDevice = deviceRepository.getDeviceById(finalDestDeviceId)
 
         if (destDevice != null) {
-            val eciesContent = eciesService.encryptToBase64(plaintextBytes, destDevice.publicKey)
+            val aad = computeMetadataAad(
+                originId    = myDeviceId,
+                finalDestId = finalDestDeviceId,
+                messageId   = messageId,
+                timestamp   = timestamp
+            )
+            val eciesContent = eciesService.encryptToBase64(plaintextBytes, destDevice.publicKey, aad)
 
             val packet = MeshPacket(
                 senderId     = myDeviceId,
@@ -360,9 +378,15 @@ class MeshRouter @Inject constructor(
             }
 
             PacketType.ROUTED_CHAT -> {
-                // ECIES — decrypt with our private key
-                val plaintext = eciesService.decryptFromBase64(packet.content) ?: run {
-                    Timber.w("MeshRouter: ECIES decrypt failed for msg=${packet.messageId}")
+                // ECIES — decrypt with our private key, verifying metadata AAD
+                val aad = computeMetadataAad(
+                    originId    = packet.originId,
+                    finalDestId = packet.finalDestId,
+                    messageId   = packet.messageId,
+                    timestamp   = packet.timestamp
+                )
+                val plaintext = eciesService.decryptFromBase64(packet.content, aad) ?: run {
+                    Timber.w("MeshRouter: ECIES decrypt failed for msg=${packet.messageId} (authentication/metadata verification failed)")
                     return null
                 }
                 persistAndReturn(packet, plaintext)

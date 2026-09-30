@@ -34,10 +34,12 @@ class SessionKeyStore @Inject constructor() {
 
     // Bounded LRU set of recently-seen message identifier keys for replay prevention
     private val recentMessageIds: MutableSet<String> = Collections.synchronizedSet(
-        object : LinkedHashMap<String, Long>(MAX_MESSAGE_IDS + 1, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>): Boolean =
-                size > MAX_MESSAGE_IDS
-        }.keySet()
+        Collections.newSetFromMap(
+            object : LinkedHashMap<String, Boolean>(MAX_MESSAGE_IDS + 1, 0.75f, true) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>): Boolean =
+                    size > MAX_MESSAGE_IDS
+            }
+        )
     )
 
     // ── Session key lifecycle ─────────────────────────────────────────────────

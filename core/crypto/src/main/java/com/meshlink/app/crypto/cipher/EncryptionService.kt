@@ -32,22 +32,25 @@ class EncryptionService @Inject constructor() {
     private val secureRandom = SecureRandom()
 
     /**
-     * Encrypts [plaintext] using [key].
+     * Encrypts [plaintext] using [key], optionally binding [aad] (Additional Authenticated Data).
      * @return nonce (12 B) + ciphertext + GCM tag (16 B)
      */
-    fun encrypt(plaintext: ByteArray, key: SecretKey): ByteArray {
+    fun encrypt(plaintext: ByteArray, key: SecretKey, aad: ByteArray? = null): ByteArray {
         val nonce = ByteArray(NONCE_BYTES).also { secureRandom.nextBytes(it) }
         val cipher = Cipher.getInstance(ALGORITHM)
         cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_BITS, nonce))
+        if (aad != null && aad.isNotEmpty()) {
+            cipher.updateAAD(aad)
+        }
         val ciphertext = cipher.doFinal(plaintext)     // includes GCM tag
         return nonce + ciphertext
     }
 
     /**
-     * Decrypts [encrypted] (nonce + ciphertext + tag) using [key].
-     * @return plaintext bytes, or null if the message is tampered / invalid.
+     * Decrypts [encrypted] (nonce + ciphertext + tag) using [key], verifying [aad] if provided.
+     * @return plaintext bytes, or null if the message is tampered / invalid / metadata mismatch.
      */
-    fun decrypt(encrypted: ByteArray, key: SecretKey): ByteArray? {
+    fun decrypt(encrypted: ByteArray, key: SecretKey, aad: ByteArray? = null): ByteArray? {
         if (encrypted.size <= NONCE_BYTES) {
             Timber.w("decrypt: payload too short (${encrypted.size} bytes)")
             return null
@@ -58,9 +61,12 @@ class EncryptionService @Inject constructor() {
 
             val cipher = Cipher.getInstance(ALGORITHM)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, nonce))
+            if (aad != null && aad.isNotEmpty()) {
+                cipher.updateAAD(aad)
+            }
             cipher.doFinal(ciphertext)
         } catch (e: AEADBadTagException) {
-            // Authentication failed — message was tampered or key is wrong
+            // Authentication failed — message was tampered or key/metadata is wrong
             Timber.w("decrypt: GCM authentication FAILED — message rejected (possible tampering)")
             null
         } catch (e: Exception) {

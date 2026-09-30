@@ -52,14 +52,15 @@ class EciesService @Inject constructor(
     }
 
     /**
-     * Encrypts [plaintext] for [recipientPublicKeyBytes] using ECIES.
+     * Encrypts [plaintext] for [recipientPublicKeyBytes] using ECIES, optionally binding [aad].
      *
      * @param plaintext          Raw bytes to encrypt.
      * @param recipientPublicKeyBytes  X.509-encoded EC P-256 public key of the recipient.
+     * @param aad                Optional Additional Authenticated Data bound to AES-GCM tag.
      * @return Wire bytes: ephemeralPubKey[91] + nonce[12] + ciphertext + tag[16].
      * @throws java.security.GeneralSecurityException if the recipient key is malformed.
      */
-    fun encrypt(plaintext: ByteArray, recipientPublicKeyBytes: ByteArray): ByteArray {
+    fun encrypt(plaintext: ByteArray, recipientPublicKeyBytes: ByteArray, aad: ByteArray? = null): ByteArray {
         // 1. Generate a fresh ephemeral EC key pair — discarded after this call
         val kpg = KeyPairGenerator.getInstance(EC_ALGORITHM)
         kpg.initialize(ECGenParameterSpec(CURVE))
@@ -85,8 +86,8 @@ class EciesService @Inject constructor(
 
         val sessionKey = SecretKeySpec(sessionKeyBytes, "AES")
 
-        // 4. AES-256-GCM encrypt — returns nonce[12] + ciphertext + tag[16]
-        val encryptedPart = encryptionService.encrypt(plaintext, sessionKey)
+        // 4. AES-256-GCM encrypt — returns nonce[12] + ciphertext + tag[16] bound to AAD
+        val encryptedPart = encryptionService.encrypt(plaintext, sessionKey, aad)
 
         // 5. Wire = ephemeralPubKey[91] || encryptedPart
         val ephemeralPubKeyBytes = ephemeralKeyPair.public.encoded  // 91 bytes for P-256
@@ -94,12 +95,13 @@ class EciesService @Inject constructor(
     }
 
     /**
-     * Decrypts ECIES wire bytes using [keyManager]'s private key.
+     * Decrypts ECIES wire bytes using [keyManager]'s private key, verifying [aad] if provided.
      *
      * @param wireBytes  Wire format: ephemeralPubKey[91] + nonce[12] + ciphertext + tag[16].
-     * @return Decrypted plaintext, or null if authentication fails (tampered/wrong key).
+     * @param aad        Optional Additional Authenticated Data expected in AES-GCM tag.
+     * @return Decrypted plaintext, or null if authentication fails (tampered/wrong key/metadata mismatch).
      */
-    fun decrypt(wireBytes: ByteArray): ByteArray? {
+    fun decrypt(wireBytes: ByteArray, aad: ByteArray? = null): ByteArray? {
         if (wireBytes.size <= PUB_KEY_BYTES + 12 + 16) {
             Timber.w("EciesService.decrypt: wire bytes too short (${wireBytes.size})")
             return null
@@ -130,8 +132,8 @@ class EciesService @Inject constructor(
 
             val sessionKey = SecretKeySpec(sessionKeyBytes, "AES")
 
-            // 4. AES-256-GCM decrypt — returns null on auth failure (tampered or wrong key)
-            encryptionService.decrypt(encryptedPart, sessionKey)
+            // 4. AES-256-GCM decrypt — returns null on auth failure (tampered, wrong key, or AAD mismatch)
+            encryptionService.decrypt(encryptedPart, sessionKey, aad)
         } catch (e: Exception) {
             Timber.e(e, "EciesService.decrypt failed")
             null
@@ -142,14 +144,14 @@ class EciesService @Inject constructor(
      * Convenience: encrypt for a peer whose public key is stored in the [KnownDevice] table.
      * Returns Base64-encoded wire bytes ready to put into [MeshPacket.content].
      */
-    fun encryptToBase64(plaintext: ByteArray, recipientPublicKeyBytes: ByteArray): String =
-        Base64.encodeToString(encrypt(plaintext, recipientPublicKeyBytes), Base64.NO_WRAP)
+    fun encryptToBase64(plaintext: ByteArray, recipientPublicKeyBytes: ByteArray, aad: ByteArray? = null): String =
+        Base64.encodeToString(encrypt(plaintext, recipientPublicKeyBytes, aad), Base64.NO_WRAP)
 
     /**
      * Convenience: decrypt from Base64-encoded [MeshPacket.content].
      */
-    fun decryptFromBase64(base64Content: String): ByteArray? =
-        decrypt(Base64.decode(base64Content, Base64.NO_WRAP))
+    fun decryptFromBase64(base64Content: String, aad: ByteArray? = null): ByteArray? =
+        decrypt(Base64.decode(base64Content, Base64.NO_WRAP), aad)
 
     // ── HKDF-SHA256 (RFC 5869) — same implementation as HandshakeManager ─────
 
