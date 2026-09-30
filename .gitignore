@@ -1,0 +1,43 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Build outputs (all submodules)
+**/build/
+
+# Compiled class files
+**/bin/
+
+# Android keystore / signing configs
+*.jks
+*.keystore
+keystore.properties
+
+# Google Services (contains API keys)
+google-services.json
+
+# Kotlin/Java compiled files
+*.class
+
+# OS
+Thumbs.db
+
+# IDE / tool folders
+.vscode/
+.claude/
+.kotlin/
+
+# Crash logs
+crash.txt
