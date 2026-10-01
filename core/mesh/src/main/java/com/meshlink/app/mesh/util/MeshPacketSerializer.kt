@@ -22,8 +22,11 @@ fun MeshPacket.toBytes(): ByteArray {
         put("hopCount",     hopCount)
         put("maxHops",      maxHops)
         put("routeHistory", histArray)
-        // User identity
-        if (senderName.isNotEmpty()) put("senderName", senderName)
+        // Phase 3A: Outer routing header never exposes senderName for multi-hop ROUTED_CHAT packets.
+        // Intermediate relays only require routing identifiers (originId, finalDestId, hopCount).
+        if (type != MeshPacket.PacketType.ROUTED_CHAT && senderName.isNotEmpty()) {
+            put("senderName", senderName)
+        }
     }
     return json.toString().toByteArray(Charsets.UTF_8)
 }

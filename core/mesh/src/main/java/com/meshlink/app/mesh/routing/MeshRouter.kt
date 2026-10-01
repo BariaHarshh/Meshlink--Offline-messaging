@@ -14,6 +14,7 @@ import com.meshlink.app.domain.repository.PendingMessageRepository
 import com.meshlink.app.domain.repository.UserProfileManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
@@ -89,32 +90,32 @@ class MeshRouter @Inject constructor(
         // 0. Packet validation
         val validation = PacketValidator.validatePacket(packet)
         if (validation is PacketValidator.ValidationResult.Invalid) {
-            Timber.w("MeshRouter: DROP malformed packet messageId=${packet.messageId}")
+            Timber.w("MeshRouter: DROP malformed packet")
             return@withContext RoutingResult.Drop
         }
 
         // Loop detection: drop if this node is already in routeHistory
         if (packet.routeHistory.contains(myDeviceId)) {
-            Timber.d("MeshRouter: DROP routing loop detected (self in routeHistory) for messageId=${packet.messageId}")
+            Timber.d("MeshRouter: DROP routing loop detected")
             return@withContext RoutingResult.Drop
         }
 
         // Route history size check
         if (packet.routeHistory.size >= PacketValidator.MAX_ROUTE_HISTORY) {
-            Timber.d("MeshRouter: DROP route history exceeded limit (${packet.routeHistory.size}) for messageId=${packet.messageId}")
+            Timber.d("MeshRouter: DROP route history exceeded limit")
             return@withContext RoutingResult.Drop
         }
 
         // 1. Deduplication & Replay protection — drop packets we've already seen
         if (seenMessageCache.isAlreadySeen(packet.messageId, packet.originId)) {
-            Timber.d("MeshRouter: DROP duplicate/replay messageId=${packet.messageId} originId=${packet.originId}")
+            Timber.d("MeshRouter: DROP duplicate/replay packet")
             return@withContext RoutingResult.Drop
         }
         seenMessageCache.markSeen(packet.messageId, packet.originId)
 
         // 2. TTL check
         if (packet.hopCount >= packet.maxHops) {
-            Timber.d("MeshRouter: DROP TTL exceeded hopCount=${packet.hopCount} maxHops=${packet.maxHops}")
+            Timber.d("MeshRouter: DROP TTL exceeded")
             return@withContext RoutingResult.Drop
         }
 
@@ -223,7 +224,17 @@ class MeshRouter @Inject constructor(
                 messageId   = messageId,
                 timestamp   = timestamp
             )
-            val eciesContent = eciesService.encryptToBase64(plaintextBytes, destDevice.publicKey, aad)
+
+            // Phase 3A: Bundle plaintext and senderName inside inner encrypted payload.
+            // Relays only forward the opaque ciphertext and do not learn the sender's display name.
+            val innerPayloadJson = JSONObject().apply {
+                put("text", plaintext)
+                if (localDisplayName.isNotEmpty()) {
+                    put("senderName", localDisplayName)
+                }
+            }
+            val innerPayloadBytes = innerPayloadJson.toString().toByteArray(Charsets.UTF_8)
+            val eciesContent = eciesService.encryptToBase64(innerPayloadBytes, destDevice.publicKey, aad)
 
             val packet = MeshPacket(
                 senderId     = myDeviceId,
@@ -236,7 +247,7 @@ class MeshRouter @Inject constructor(
                 finalDestId  = finalDestDeviceId,
                 hopCount     = 0,
                 maxHops      = 7,
-                senderName   = localDisplayName
+                senderName   = ""  // Omitted from outer routing metadata
             )
 
             // Persist plaintext on sender side (we know what we sent)
@@ -274,7 +285,7 @@ class MeshRouter @Inject constructor(
         }
 
         // ── Unknown destination ───────────────────────────────────────────────
-        Timber.w("MeshRouter: unknown destination $finalDestDeviceId — no public key stored")
+        Timber.w("MeshRouter: unknown destination — no public key stored")
         RoutingResult.UnknownDestination(finalDestDeviceId)
     }
 
@@ -329,7 +340,7 @@ class MeshRouter @Inject constructor(
             // Enforce global expiration: drop if expired
             if (pending.expiresAt <= now) {
                 pendingMessageRepository.remove(pending.id)
-                Timber.d("MeshRouter: dropped expired pending message ${pending.id}")
+                Timber.d("MeshRouter: dropped expired pending message")
                 continue
             }
 
@@ -341,7 +352,7 @@ class MeshRouter @Inject constructor(
             // Enforce global hop limit: drop if max hops already reached
             if (packet.hopCount >= packet.maxHops) {
                 pendingMessageRepository.remove(pending.id)
-                Timber.d("MeshRouter: dropped pending message ${packet.messageId} - max hops reached")
+                Timber.d("MeshRouter: dropped pending message — max hops reached")
                 continue
             }
 
@@ -351,7 +362,7 @@ class MeshRouter @Inject constructor(
                 // Preserve original hopCount, timestamp, and lifetime (do NOT reset hopCount!)
                 targets.add(ForwardTarget(nextHop, packet))
                 pendingMessageRepository.remove(pending.id)
-                Timber.i("MeshRouter: flushing pending ${packet.messageId} → $nextHop (hopCount=${packet.hopCount})")
+                Timber.i("MeshRouter: flushing pending message → $nextHop (hopCount=${packet.hopCount})")
             }
         }
         targets
@@ -366,12 +377,12 @@ class MeshRouter @Inject constructor(
                 val originEndpoint = findEndpointForDevice(packet.originId)
                 val sessionKey     = originEndpoint?.let { sessionKeyStore.getSessionKey(it) }
                 if (sessionKey == null) {
-                    Timber.w("MeshRouter: no session key for CHAT from ${packet.originId}")
+                    Timber.w("MeshRouter: no session key for CHAT")
                     return null
                 }
                 val encryptedBytes = Base64.decode(packet.content, Base64.NO_WRAP)
                 val plaintext      = encryptionService.decrypt(encryptedBytes, sessionKey) ?: run {
-                    Timber.w("MeshRouter: AES-GCM decrypt failed for msg=${packet.messageId}")
+                    Timber.w("MeshRouter: AES-GCM decrypt failed")
                     return null
                 }
                 persistAndReturn(packet, plaintext)
@@ -385,11 +396,26 @@ class MeshRouter @Inject constructor(
                     messageId   = packet.messageId,
                     timestamp   = packet.timestamp
                 )
-                val plaintext = eciesService.decryptFromBase64(packet.content, aad) ?: run {
-                    Timber.w("MeshRouter: ECIES decrypt failed for msg=${packet.messageId} (authentication/metadata verification failed)")
+                val decryptedBytes = eciesService.decryptFromBase64(packet.content, aad) ?: run {
+                    Timber.w("MeshRouter: ECIES decrypt failed (authentication/metadata verification failed)")
                     return null
                 }
-                persistAndReturn(packet, plaintext)
+
+                // Phase 3A: Extract inner payload (text + senderName)
+                val (plaintextBytes, extractedSenderName) = try {
+                    val json = JSONObject(String(decryptedBytes, Charsets.UTF_8))
+                    if (json.has("text")) {
+                        val text = json.getString("text")
+                        val sender = json.optString("senderName", packet.senderName)
+                        Pair(text.toByteArray(Charsets.UTF_8), sender)
+                    } else {
+                        Pair(decryptedBytes, packet.senderName)
+                    }
+                } catch (_: Exception) {
+                    Pair(decryptedBytes, packet.senderName)
+                }
+
+                persistAndReturn(packet.copy(senderName = extractedSenderName), plaintextBytes)
             }
 
             PacketType.BROADCAST -> {
@@ -432,11 +458,11 @@ class MeshRouter @Inject constructor(
     ): List<ForwardTarget> {
         val nextHopCount = packet.hopCount + 1
         if (nextHopCount >= packet.maxHops) {
-            Timber.d("MeshRouter: dropping packet ${packet.messageId} - TTL exceeded (next hop: $nextHopCount >= ${packet.maxHops})")
+            Timber.d("MeshRouter: dropping packet — TTL exceeded")
             return emptyList()
         }
         if (packet.routeHistory.size >= PacketValidator.MAX_ROUTE_HISTORY) {
-            Timber.d("MeshRouter: dropping packet ${packet.messageId} - route history limit exceeded")
+            Timber.d("MeshRouter: dropping packet — route history limit exceeded")
             return emptyList()
         }
 
@@ -503,7 +529,7 @@ class MeshRouter @Inject constructor(
                 expiresAt      = now + PENDING_TTL_MS
             )
         )
-        Timber.i("MeshRouter: queued pending message for $targetDeviceId (expires in 48h)")
+        Timber.i("MeshRouter: queued pending message (expires in 48h)")
     }
 }
 
@@ -542,8 +568,12 @@ private fun MeshPacket.toJson(): String {
     sb.append(""""originId":"$originId","finalDestId":"$finalDestId",""")
     sb.append(""""hopCount":$hopCount,"maxHops":$maxHops,""")
     val hist = routeHistory.joinToString(",") { "\"$it\"" }
-    sb.append(""""routeHistory":[$hist],""")
-    sb.append(""""senderName":"${senderName.replace("\\", "\\\\").replace("\"", "\\\"")}"}""")
+    sb.append(""""routeHistory":[$hist]""")
+    if (type != PacketType.ROUTED_CHAT && senderName.isNotEmpty()) {
+        sb.append(""", "senderName":"${senderName.replace("\\", "\\\\").replace("\"", "\\\"")}"}""")
+    } else {
+        sb.append("}")
+    }
     return sb.toString()
 }
 

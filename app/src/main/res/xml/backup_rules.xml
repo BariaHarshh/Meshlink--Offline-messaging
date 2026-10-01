@@ -20,4 +20,5 @@
          and cannot be decrypted after restoring to a different device. -->
     <exclude domain="sharedpref" path="meshlink_db_key_v1.xml" />
     <exclude domain="sharedpref" path="meshlink_identity_v1.xml" />
+    <exclude domain="sharedpref" path="meshlink_profile_v1.xml" />
 </full-backup-content>

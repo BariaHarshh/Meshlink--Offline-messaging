@@ -144,7 +144,7 @@ class KeyManager @Inject constructor(
                 val kf = KeyFactory.getInstance(EC_ALGORITHM)
                 val priv = kf.generatePrivate(PKCS8EncodedKeySpec(Base64.decode(storedPriv, Base64.NO_WRAP)))
                 val pub  = kf.generatePublic(X509EncodedKeySpec(Base64.decode(storedPub, Base64.NO_WRAP)))
-                Timber.d("KeyManager: loaded existing identity key (deviceId=${computeDeviceId(pub.encoded)})")
+                Timber.d("KeyManager: loaded existing identity key")
                 KeyPair(pub, priv)
             } catch (e: Exception) {
                 Timber.e(e, "KeyManager: failed to load stored keys, generating fresh pair")
@@ -165,7 +165,7 @@ class KeyManager @Inject constructor(
             .putString(KEY_PUBLIC,  Base64.encodeToString(kp.public.encoded,  Base64.NO_WRAP))
             .apply()
 
-        Timber.d("KeyManager: generated new identity key (deviceId=${computeDeviceId(kp.public.encoded)})")
+        Timber.d("KeyManager: generated new identity key")
         return kp
     }
 

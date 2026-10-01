@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.meshlink.app.data.repository.UserProfileManagerImpl
 import com.meshlink.app.domain.model.EmergencyContact
 import com.meshlink.app.domain.repository.NearbyRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,17 +43,11 @@ class MedicalProfileViewModel @Inject constructor(
     private val nearbyRepository: NearbyRepository
 ) : ViewModel() {
 
-    companion object {
-        const val PREFS_NAME = "meshlink_profile"
-        const val KEY_FULL_NAME          = "full_name"
-        const val KEY_BLOOD_GROUP        = "blood_group"
-        const val KEY_ALLERGIES          = "allergies"
-        const val KEY_MEDICATIONS        = "medications"
-        const val KEY_EMERGENCY_CONTACTS = "emergency_contacts"
-    }
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private val prefs: SharedPreferences by lazy {
+        UserProfileManagerImpl.getEncryptedProfilePrefs(context)
+    }
 
     /** Emits Unit when profile is saved and the screen should navigate back. */
     private val _profileSaved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -99,19 +94,18 @@ class MedicalProfileViewModel @Inject constructor(
             }
         }.toString()
 
-        // Persist to SharedPreferences (including emergency contacts)
+        // Persist to EncryptedSharedPreferences (including emergency contacts)
         prefs.edit()
-            .putString(KEY_FULL_NAME,          current.fullName)
-            .putString(KEY_BLOOD_GROUP,        current.bloodGroup)
-            .putString(KEY_ALLERGIES,          current.allergies)
-            .putString(KEY_MEDICATIONS,        current.medications)
-            .putString(KEY_EMERGENCY_CONTACTS, contactsJson)
+            .putString(UserProfileManagerImpl.KEY_FULL_NAME,          current.fullName)
+            .putString(UserProfileManagerImpl.KEY_BLOOD_GROUP,        current.bloodGroup)
+            .putString(UserProfileManagerImpl.KEY_ALLERGIES,          current.allergies)
+            .putString(UserProfileManagerImpl.KEY_MEDICATIONS,        current.medications)
+            .putString(UserProfileManagerImpl.KEY_EMERGENCY_CONTACTS, contactsJson)
             .apply()
 
         _state.update { it.copy(isSaved = true) }
 
-        // Restart advertising only (not discovery) so the updated display name
-        // takes effect without killing existing peer connections.
+        // Restart advertising only (not discovery)
         nearbyRepository.restartAdvertisingOnly()
 
         // Emit navigation-back signal after a short delay so user sees "Profile Saved"
@@ -122,10 +116,10 @@ class MedicalProfileViewModel @Inject constructor(
     }
 
     private fun loadProfile(): MedicalProfileState {
-        val savedName = prefs.getString(KEY_FULL_NAME, null)
+        val savedName = prefs.getString(UserProfileManagerImpl.KEY_FULL_NAME, null)
 
         // Deserialize emergency contacts from JSON
-        val contacts = prefs.getString(KEY_EMERGENCY_CONTACTS, null)?.let { json ->
+        val contacts = prefs.getString(UserProfileManagerImpl.KEY_EMERGENCY_CONTACTS, null)?.let { json ->
             try {
                 val arr = JSONArray(json)
                 (0 until arr.length()).map { i ->
@@ -146,9 +140,9 @@ class MedicalProfileViewModel @Inject constructor(
 
         return MedicalProfileState(
             fullName          = savedName ?: "ALEXANDER VANCE",
-            bloodGroup        = prefs.getString(KEY_BLOOD_GROUP, "") ?: "",
-            allergies         = prefs.getString(KEY_ALLERGIES, "")   ?: "",
-            medications       = prefs.getString(KEY_MEDICATIONS, "") ?: "",
+            bloodGroup        = prefs.getString(UserProfileManagerImpl.KEY_BLOOD_GROUP, "") ?: "",
+            allergies         = prefs.getString(UserProfileManagerImpl.KEY_ALLERGIES, "")   ?: "",
+            medications       = prefs.getString(UserProfileManagerImpl.KEY_MEDICATIONS, "") ?: "",
             emergencyContacts = contacts,
             isSaved           = savedName != null  // mark as saved if loaded from prefs
         )

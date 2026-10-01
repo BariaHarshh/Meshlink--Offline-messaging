@@ -68,6 +68,15 @@ class BackupRulesTest {
     }
 
     @Test
+    fun `data_extraction_rules - excludes medical profile sharedpref from cloud-backup and device-transfer`() {
+        val content = dataExtractionRules.readText()
+        assertTrue(
+            "data_extraction_rules.xml must exclude meshlink_profile_v1.xml",
+            content.contains("meshlink_profile_v1")
+        )
+    }
+
+    @Test
     fun `data_extraction_rules - excludes sensitive data from device-transfer`() {
         val content = dataExtractionRules.readText()
         assertTrue(
@@ -104,4 +113,14 @@ class BackupRulesTest {
             content.contains("meshlink_identity_v1")
         )
     }
+
+    @Test
+    fun `backup_rules - excludes medical profile sharedpref`() {
+        val content = backupRules.readText()
+        assertTrue(
+            "backup_rules.xml must exclude meshlink_profile_v1",
+            content.contains("meshlink_profile_v1")
+        )
+    }
 }
+

@@ -104,11 +104,11 @@ class NearbyRepositoryImpl @Inject constructor(
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            Timber.d("Endpoint found: $endpointId name=${info.endpointName}")
+            Timber.d("Endpoint found: $endpointId")
             adaptiveScanController.onDeviceFound()  // Phase 5: reset to fast scan
             nameToEndpointId[info.endpointName] = endpointId
             _discoveredDevices.update { current ->
-                val filtered = current.filter { it.name != info.endpointName }
+                val filtered = current.filter { it.endpointId != endpointId }
                 filtered + DiscoveredDevice(endpointId, info.endpointName)
             }
         }
@@ -121,7 +121,7 @@ class NearbyRepositoryImpl @Inject constructor(
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
-            Timber.d("Connection initiated: $endpointId (${info.endpointName}), auto-accepting")
+            Timber.d("Connection initiated: $endpointId, auto-accepting")
             _connectionStates.update { it + (endpointId to ConnectionState.CONNECTING) }
             connectionsClient.acceptConnection(endpointId, payloadCallback)
                 .addOnFailureListener { e -> Timber.e(e, "acceptConnection failed for $endpointId") }
@@ -198,7 +198,7 @@ class NearbyRepositoryImpl @Inject constructor(
     }
 
     private fun handleHandshake(endpointId: String, packet: MeshPacket) {
-        Timber.d("HANDSHAKE received from $endpointId (claimedPeerId=${packet.senderId})")
+        Timber.d("HANDSHAKE received from $endpointId")
         scope.launch(Dispatchers.IO) {
             val result = handshakeManager.processHandshakePacket(endpointId, packet, localDeviceId)
             when (result) {
@@ -233,7 +233,7 @@ class NearbyRepositoryImpl @Inject constructor(
     ) {
         // 1. Record endpointId → stable peerDeviceId mapping
         endpointIdToDeviceId[endpointId] = peerDeviceId
-        Timber.d("Identity mapped: $endpointId → $peerDeviceId")
+        Timber.d("Identity mapped for endpoint: $endpointId")
 
         // 2. Update routing table: direct 1-hop route
         routingTable.addRoute(peerDeviceId, endpointId)
@@ -248,7 +248,7 @@ class NearbyRepositoryImpl @Inject constructor(
             com.meshlink.app.domain.model.VerificationStatus.UNVERIFIED
         } else {
             if (!existingDevice.publicKey.contentEquals(peerPubKeyBytes)) {
-                Timber.w("SECURITY: Device $peerDeviceId changed its identity public key! Downgrading to UNVERIFIED")
+                Timber.w("SECURITY: Peer changed its identity public key! Downgrading to UNVERIFIED")
                 com.meshlink.app.domain.model.VerificationStatus.UNVERIFIED
             } else {
                 existingDevice.verificationStatus
@@ -256,11 +256,13 @@ class NearbyRepositoryImpl @Inject constructor(
         }
         val firstSeen = existingDevice?.firstSeen ?: System.currentTimeMillis()
 
+        val initialDisplayName = existingDevice?.displayName?.takeIf { it.isNotEmpty() }
+            ?: peerDeviceId.take(8)
+
         deviceRepository.upsertDevice(
             KnownDevice(
                 deviceId           = peerDeviceId,
-                displayName        = nameToEndpointId.entries
-                    .firstOrNull { it.value == endpointId }?.key ?: peerDeviceId,
+                displayName        = initialDisplayName,
                 publicKey          = peerPubKeyBytes,
                 lastSeen           = System.currentTimeMillis(),
                 firstSeen          = firstSeen,
@@ -273,7 +275,7 @@ class NearbyRepositoryImpl @Inject constructor(
         val pending = meshRouter.flushPendingQueue(peers)
         pending.forEach { target -> dispatchToNearby(target) }
 
-        Timber.i("Session CONNECTED with $endpointId ($peerDeviceId) — authenticated E2E active, ${pending.size} pending flushed")
+        Timber.i("Session CONNECTED with $endpointId — authenticated E2E active, ${pending.size} pending flushed")
     }
 
     // ── Phase 4: incoming routed packet ──────────────────────────────────────
@@ -320,12 +322,12 @@ class NearbyRepositoryImpl @Inject constructor(
         // Authenticated session check: senderId must match authenticated peer for this endpoint
         val authenticatedPeerId = endpointIdToDeviceId[fromEndpointId]
         if (authenticatedPeerId == null || packet.senderId != authenticatedPeerId || packet.originId != authenticatedPeerId) {
-            Timber.w("SECURITY: Sender identity spoofing detected! claimed=${packet.senderId} authenticated=$authenticatedPeerId endpoint=$fromEndpointId")
+            Timber.w("SECURITY: Sender identity spoofing detected for endpoint=$fromEndpointId")
             return
         }
 
         if (!sessionKeyStore.isNewMessage(packet.messageId, authenticatedPeerId)) {
-            Timber.w("REPLAY: dropping duplicate messageId=${packet.messageId} from $authenticatedPeerId")
+            Timber.w("REPLAY: dropping duplicate message for endpoint=$fromEndpointId")
             return
         }
 
@@ -393,7 +395,8 @@ class NearbyRepositoryImpl @Inject constructor(
 
     override fun requestConnection(endpointId: String) {
         _connectionStates.update { it + (endpointId to ConnectionState.CONNECTING) }
-        connectionsClient.requestConnection(userProfileManager.getDisplayName(), endpointId, connectionLifecycleCallback)
+        // Phase 3A: Use the same generic non-identifying token as startAdvertisingInternal.
+        connectionsClient.requestConnection("meshlink.node", endpointId, connectionLifecycleCallback)
             .addOnSuccessListener { Timber.d("Connection requested to $endpointId") }
             .addOnFailureListener { e ->
                 Timber.e(e, "requestConnection to $endpointId failed")
@@ -465,7 +468,7 @@ class NearbyRepositoryImpl @Inject constructor(
             )
             when (result) {
                 is RoutingResult.Processed -> result.forwardTargets.forEach { dispatchToNearby(it) }
-                is RoutingResult.Queued    -> Timber.i("Message queued for $finalDestDeviceId")
+                is RoutingResult.Queued    -> Timber.i("Message queued for peer")
                 is RoutingResult.UnknownDestination -> {
                     // Persist locally so the message appears in chat UI with a "queued" icon.
                     // It will be delivered once the peer connects and flushPendingQueue runs.
@@ -481,7 +484,7 @@ class NearbyRepositoryImpl @Inject constructor(
                             senderName = localDisplayName
                         )
                     )
-                    Timber.w("Cannot route to $finalDestDeviceId — public key unknown, saved locally")
+                    Timber.w("Cannot route to destination — public key unknown, saved locally")
                 }
                 is RoutingResult.Drop      -> { /* no-op */ }
             }
@@ -538,7 +541,7 @@ class NearbyRepositoryImpl @Inject constructor(
         val payload = Payload.fromBytes(packet.toBytes())
         connectionsClient.sendPayload(endpointId, payload)
             .addOnSuccessListener {
-                Timber.d("Forwarded ${packet.type} msgId=${packet.messageId} hop=${packet.hopCount} → $endpointId")
+                Timber.d("Forwarded ${packet.type} hop=${packet.hopCount} → $endpointId")
             }
             .addOnFailureListener { e ->
                 Timber.e(e, "dispatchToNearby failed for $endpointId")
@@ -597,13 +600,15 @@ class NearbyRepositoryImpl @Inject constructor(
 
     private fun startAdvertisingInternal() {
         if (isAdvertising) return
-        // Read fresh display name each time so profile changes take effect
-        val currentName = userProfileManager.getDisplayName()
+        // Phase 3A: Advertise only a generic, non-identifying protocol token.
+        // The user's real display name MUST NOT appear in the unauthenticated
+        // Nearby beacon; it is only exchanged after ECDH handshake completes.
+        val advertisingToken = "meshlink.node"
         connectionsClient.startAdvertising(
-            currentName, SERVICE_ID, connectionLifecycleCallback,
+            advertisingToken, SERVICE_ID, connectionLifecycleCallback,
             AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
         ).addOnSuccessListener {
-            Timber.d("Advertising started as '$currentName'")
+            Timber.d("Advertising started")
             isAdvertising = true
         }.addOnFailureListener { e ->
             Timber.e(e, "startAdvertising failed")

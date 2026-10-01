@@ -71,7 +71,7 @@ class ChatViewModel @Inject constructor(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val messages: StateFlow<List<Message>> = peerDeviceId
         .flatMapLatest { peerId ->
-            Timber.d("ChatViewModel: querying messages for peerId=$peerId")
+            Timber.d("ChatViewModel: querying messages")
             messageRepository.getMessagesByConversation(peerId)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -104,7 +104,7 @@ class ChatViewModel @Inject constructor(
         val finalDestDeviceId = peerDeviceId.value
         val now               = System.currentTimeMillis()
 
-        Timber.d("Sending to peerDeviceId=$finalDestDeviceId (liveEndpoint=$liveEndpointId)")
+        Timber.d("Sending message (liveEndpoint=$liveEndpointId)")
 
         // Build the plaintext packet — routeToDevice handles encryption and routing internally:
         //   • Direct connection   → CHAT (AES-256-GCM, Phase 3)
