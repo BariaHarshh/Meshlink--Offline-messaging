@@ -11,7 +11,8 @@ data class MessageEntity(
     val ciphertext: ByteArray,
     val timestamp: Long,
     val delivered: Boolean,
-    val senderName: String = ""
+    val senderName: String = "",
+    val deliveryStatus: String = if (delivered) "DELIVERED" else "PENDING"
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

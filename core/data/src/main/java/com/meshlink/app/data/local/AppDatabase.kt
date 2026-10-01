@@ -17,7 +17,7 @@ import com.meshlink.app.data.local.entity.PendingMessageEntity
         KnownDeviceEntity::class,
         PendingMessageEntity::class   // Phase 4: store-and-forward queue
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -73,6 +73,22 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "ALTER TABLE known_devices ADD COLUMN verificationStatus TEXT NOT NULL DEFAULT 'UNVERIFIED'"
+                )
+            }
+        }
+
+        /**
+         * v4 → v5: adds deliveryStatus column to messages table.
+         * Pure additive migration — existing messages with delivered == 1 receive 'DELIVERED',
+         * and delivered == 0 receive 'PENDING'.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE messages ADD COLUMN deliveryStatus TEXT NOT NULL DEFAULT 'PENDING'"
+                )
+                db.execSQL(
+                    "UPDATE messages SET deliveryStatus = 'DELIVERED' WHERE delivered = 1"
                 )
             }
         }

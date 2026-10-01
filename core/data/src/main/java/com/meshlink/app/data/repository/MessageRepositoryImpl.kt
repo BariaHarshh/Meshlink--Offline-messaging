@@ -3,6 +3,7 @@ package com.meshlink.app.data.repository
 import com.meshlink.app.data.local.dao.MessageDao
 import com.meshlink.app.data.local.mapper.toDomain
 import com.meshlink.app.data.local.mapper.toEntity
+import com.meshlink.app.domain.model.DeliveryStatus
 import com.meshlink.app.domain.model.Message
 import com.meshlink.app.domain.repository.MessageRepository
 import kotlinx.coroutines.flow.Flow
@@ -29,4 +30,10 @@ class MessageRepositoryImpl @Inject constructor(
         messageDao.insert(message.toEntity())
     }
 
+    override suspend fun updateDeliveryStatus(messageId: String, status: DeliveryStatus) {
+        messageDao.updateDeliveryStatus(messageId, status.name)
+    }
+
+    override suspend fun getMessageById(messageId: String): Message? =
+        messageDao.getMessageById(messageId)?.toDomain()
 }

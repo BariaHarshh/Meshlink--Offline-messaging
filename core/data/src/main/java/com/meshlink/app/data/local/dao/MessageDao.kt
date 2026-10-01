@@ -12,6 +12,16 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(message: MessageEntity)
 
+    /**
+     * Phase 4A: Updates ONLY the delivery status of a message.
+     * Does not modify ciphertext, timestamp, senderId, receiverId, or messageId.
+     */
+    @Query("UPDATE messages SET deliveryStatus = :status, delivered = CASE WHEN :status = 'DELIVERED' THEN 1 ELSE 0 END WHERE id = :messageId")
+    suspend fun updateDeliveryStatus(messageId: String, status: String)
+
+    @Query("SELECT * FROM messages WHERE id = :messageId LIMIT 1")
+    suspend fun getMessageById(messageId: String): MessageEntity?
+
     @Query("SELECT * FROM messages WHERE senderId = :peerId OR receiverId = :peerId ORDER BY timestamp ASC")
     fun getByConversation(peerId: String): Flow<List<MessageEntity>>
 
