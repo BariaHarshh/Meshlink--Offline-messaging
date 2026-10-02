@@ -8,7 +8,7 @@ package com.meshlink.app.domain.model
  *   • A peer who can reach [targetDeviceId] connects  → delivery attempted
  *   • [expiresAt] is reached                          → [MeshCleanupWorker] deletes it
  *
- * @param id           Unique queue entry id (separate from the inner packet's messageId).
+ * @param id           Unique queue entry id (matches the inner packet's messageId for deduplication).
  * @param packetJson   Serialized MeshPacket (JSON). Re-deserialized when delivery is retried.
  * @param targetDeviceId Stable crypto deviceId of the final recipient.
  * @param enqueuedAt   Epoch-millis when the entry was created.

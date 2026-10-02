@@ -17,6 +17,7 @@ import com.meshlink.app.crypto.cipher.EncryptionService
 import com.meshlink.app.crypto.session.HandshakeManager
 import com.meshlink.app.crypto.session.SessionKeyStore
 import com.meshlink.app.domain.model.ConnectionState
+import com.meshlink.app.domain.model.DeliveryStatus
 import com.meshlink.app.domain.model.DiscoveredDevice
 import com.meshlink.app.domain.model.KnownDevice
 import com.meshlink.app.domain.model.MeshPacket
@@ -444,6 +445,11 @@ class NearbyRepositoryImpl @Inject constructor(
             val msgId = securePacket.messageId
             val payload = Payload.fromBytes(securePacket.toBytes())
             connectionsClient.sendPayload(endpointId, payload)
+                .addOnSuccessListener {
+                    scope.launch(Dispatchers.IO) {
+                        messageRepository.updateDeliveryStatus(msgId, DeliveryStatus.SENT)
+                    }
+                }
                 .addOnFailureListener { e ->
                     Timber.e(e, "sendPayload to $endpointId failed")
                     _connectionStates.update { it + (endpointId to ConnectionState.DISCONNECTED) }
@@ -475,13 +481,14 @@ class NearbyRepositoryImpl @Inject constructor(
                     val localDisplayName = userProfileManager.getDisplayName()
                     messageRepository.insertMessage(
                         com.meshlink.app.domain.model.Message(
-                            id         = packet.messageId,
-                            senderId   = localDeviceId,
-                            receiverId = finalDestDeviceId,
-                            ciphertext = packet.content.toByteArray(Charsets.UTF_8),
-                            timestamp  = packet.timestamp,
-                            delivered  = false,
-                            senderName = localDisplayName
+                            id             = packet.messageId,
+                            senderId       = localDeviceId,
+                            receiverId     = finalDestDeviceId,
+                            ciphertext     = packet.content.toByteArray(Charsets.UTF_8),
+                            timestamp      = packet.timestamp,
+                            delivered      = false,
+                            senderName     = localDisplayName,
+                            deliveryStatus = DeliveryStatus.QUEUED
                         )
                     )
                     Timber.w("Cannot route to destination — public key unknown, saved locally")
@@ -536,15 +543,24 @@ class NearbyRepositoryImpl @Inject constructor(
         val state = _connectionStates.value[endpointId]
         if (state != ConnectionState.CONNECTED) {
             Timber.w("dispatchToNearby: skipping $endpointId — state=$state")
+            scope.launch(Dispatchers.IO) {
+                meshRouter.onSendFailure(packet)
+            }
             return
         }
         val payload = Payload.fromBytes(packet.toBytes())
         connectionsClient.sendPayload(endpointId, payload)
             .addOnSuccessListener {
                 Timber.d("Forwarded ${packet.type} hop=${packet.hopCount} → $endpointId")
+                scope.launch(Dispatchers.IO) {
+                    meshRouter.onSendSuccess(packet.messageId, packet.originId)
+                }
             }
             .addOnFailureListener { e ->
                 Timber.e(e, "dispatchToNearby failed for $endpointId")
+                scope.launch(Dispatchers.IO) {
+                    meshRouter.onSendFailure(packet)
+                }
             }
     }
 

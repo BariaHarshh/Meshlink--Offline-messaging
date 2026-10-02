@@ -4,6 +4,7 @@ import android.util.Base64
 import com.meshlink.app.crypto.cipher.EciesService
 import com.meshlink.app.crypto.cipher.EncryptionService
 import com.meshlink.app.crypto.session.SessionKeyStore
+import com.meshlink.app.domain.model.DeliveryStatus
 import com.meshlink.app.domain.model.Message
 import com.meshlink.app.domain.model.MeshPacket
 import com.meshlink.app.domain.model.MeshPacket.PacketType
@@ -196,13 +197,14 @@ class MeshRouter @Inject constructor(
                 // Persist plaintext (sender side)
                 messageRepository.insertMessage(
                     Message(
-                        id         = messageId,
-                        senderId   = myDeviceId,
-                        receiverId = finalDestDeviceId,
-                        ciphertext = plaintextBytes,
-                        timestamp  = timestamp,
-                        delivered  = false,
-                        senderName = localDisplayName
+                        id             = messageId,
+                        senderId       = myDeviceId,
+                        receiverId     = finalDestDeviceId,
+                        ciphertext     = plaintextBytes,
+                        timestamp      = timestamp,
+                        delivered      = false,
+                        senderName     = localDisplayName,
+                        deliveryStatus = DeliveryStatus.PENDING
                     )
                 )
 
@@ -253,13 +255,14 @@ class MeshRouter @Inject constructor(
             // Persist plaintext on sender side (we know what we sent)
             messageRepository.insertMessage(
                 Message(
-                    id         = messageId,
-                    senderId   = myDeviceId,
-                    receiverId = finalDestDeviceId,
-                    ciphertext = plaintextBytes,
-                    timestamp  = timestamp,
-                    delivered  = false,
-                    senderName = localDisplayName
+                    id             = messageId,
+                    senderId       = myDeviceId,
+                    receiverId     = finalDestDeviceId,
+                    ciphertext     = plaintextBytes,
+                    timestamp      = timestamp,
+                    delivered      = false,
+                    senderName     = localDisplayName,
+                    deliveryStatus = DeliveryStatus.PENDING
                 )
             )
 
@@ -275,6 +278,7 @@ class MeshRouter @Inject constructor(
             if (forwardTargets.isEmpty()) {
                 // No connected peers — queue it
                 enqueuePending(packet, finalDestDeviceId, timestamp)
+                messageRepository.updateDeliveryStatus(messageId, DeliveryStatus.QUEUED)
                 return@withContext RoutingResult.Queued(messageId)
             }
 
@@ -361,8 +365,9 @@ class MeshRouter @Inject constructor(
             if (nextHop != null) {
                 // Preserve original hopCount, timestamp, and lifetime (do NOT reset hopCount!)
                 targets.add(ForwardTarget(nextHop, packet))
-                pendingMessageRepository.remove(pending.id)
-                Timber.i("MeshRouter: flushing pending message → $nextHop (hopCount=${packet.hopCount})")
+                // Phase 4B: Do NOT delete pending message from repository here.
+                // It is only removed after transport transmission success is confirmed via onSendSuccess().
+                Timber.i("MeshRouter: candidate found for pending message ${packet.messageId} → $nextHop (hopCount=${packet.hopCount})")
             }
         }
         targets
@@ -522,14 +527,42 @@ class MeshRouter @Inject constructor(
     private suspend fun enqueuePending(packet: MeshPacket, targetDeviceId: String, now: Long) {
         pendingMessageRepository.enqueue(
             PendingMessage(
-                id             = UUID.randomUUID().toString(),
+                id             = packet.messageId,
                 packetJson     = packet.toJson(),
                 targetDeviceId = targetDeviceId,
-                enqueuedAt     = now,
-                expiresAt      = now + PENDING_TTL_MS
+                enqueuedAt     = packet.timestamp,
+                expiresAt      = packet.timestamp + PENDING_TTL_MS
             )
         )
-        Timber.i("MeshRouter: queued pending message (expires in 48h)")
+        Timber.i("MeshRouter: queued pending message ${packet.messageId} (expires in 48h from origin)")
+    }
+
+    // ── Phase 4B: Transmission lifecycle callbacks ────────────────────────────
+
+    /**
+     * Called when transport confirms successful transmission of a packet.
+     * Safely deletes the pending message from [pendingMessageRepository] only after
+     * transmission success is confirmed, and updates outgoing message status to [DeliveryStatus.SENT].
+     */
+    suspend fun onSendSuccess(messageId: String, originId: String) = withContext(Dispatchers.IO) {
+        pendingMessageRepository.remove(messageId)
+        if (originId == myDeviceId) {
+            messageRepository.updateDeliveryStatus(messageId, DeliveryStatus.SENT)
+            Timber.d("MeshRouter: transmission confirmed for $messageId -> SENT")
+        }
+    }
+
+    /**
+     * Called when transport transmission fails.
+     * Retains the pending message in Room (never deletes on failure).
+     * If this was an unqueued outgoing routed message, queues it so it will be retried on next flush.
+     */
+    suspend fun onSendFailure(packet: MeshPacket) = withContext(Dispatchers.IO) {
+        if (packet.originId == myDeviceId && packet.type == PacketType.ROUTED_CHAT) {
+            enqueuePending(packet, packet.finalDestId, packet.timestamp)
+            messageRepository.updateDeliveryStatus(packet.messageId, DeliveryStatus.QUEUED)
+            Timber.w("MeshRouter: transport failed for ${packet.messageId}, retained in queue as QUEUED")
+        }
     }
 }
 
