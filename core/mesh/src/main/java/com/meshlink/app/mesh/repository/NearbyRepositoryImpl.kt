@@ -174,10 +174,11 @@ class NearbyRepositoryImpl @Inject constructor(
 
             when (packet.type) {
                 MeshPacket.PacketType.HANDSHAKE    -> handleHandshake(endpointId, packet)
-                // All message types (CHAT, ROUTED_CHAT, BROADCAST) go through MeshRouter
+                // All message types (CHAT, ROUTED_CHAT, BROADCAST, ACK) go through MeshRouter
                 MeshPacket.PacketType.CHAT,
                 MeshPacket.PacketType.ROUTED_CHAT,
-                MeshPacket.PacketType.BROADCAST    -> handleRoutedPacket(endpointId, packet)
+                MeshPacket.PacketType.BROADCAST,
+                MeshPacket.PacketType.ACK          -> handleRoutedPacket(endpointId, packet)
             }
         }
 
@@ -352,13 +353,14 @@ class NearbyRepositoryImpl @Inject constructor(
         val plaintextStr = String(plaintext, Charsets.UTF_8)
         messageRepository.insertMessage(
             com.meshlink.app.domain.model.Message(
-                id         = packet.messageId,
-                senderId   = packet.originId,
-                receiverId = localDeviceId,
-                ciphertext = plaintext,
-                timestamp  = packet.timestamp,
-                delivered  = true,
-                senderName = packet.senderName
+                id             = packet.messageId,
+                senderId       = packet.originId,
+                receiverId     = localDeviceId,
+                ciphertext     = plaintext,
+                timestamp      = packet.timestamp,
+                delivered      = true,
+                senderName     = packet.senderName,
+                deliveryStatus = DeliveryStatus.DELIVERED
             )
         )
 
@@ -371,6 +373,11 @@ class NearbyRepositoryImpl @Inject constructor(
         }
 
         _incomingPackets.emit(packet.copy(content = plaintextStr))
+
+        // Phase 4C: Generate ACK for direct chat after successful persistence
+        val peers = getConnectedPeers()
+        val ackTargets = meshRouter.generateAckTargets(packet, peers)
+        ackTargets.forEach { target -> dispatchToNearby(target) }
     }
 
     // ── Public API ────────────────────────────────────────────────────────────

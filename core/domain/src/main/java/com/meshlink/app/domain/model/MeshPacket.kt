@@ -53,7 +53,9 @@ data class MeshPacket(
         /** Multi-hop — ECIES encrypted for finalDestId's public key. Relays are opaque. */
         ROUTED_CHAT,
         /** Flood to all reachable nodes. finalDestId == BROADCAST_DEST. Plaintext. */
-        BROADCAST
+        BROADCAST,
+        /** End-to-end delivery acknowledgment — authenticated confirmation of receipt. */
+        ACK
     }
 
     val isBroadcast: Boolean get() = finalDestId == BROADCAST_DEST

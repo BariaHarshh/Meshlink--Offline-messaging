@@ -68,6 +68,18 @@ class MeshRouter @Inject constructor(
             timestamp: Long
         ): ByteArray =
             "ROUTED_CHAT_AAD:$originId:$finalDestId:$messageId:$timestamp".toByteArray(Charsets.UTF_8)
+
+        /**
+         * Phase 4C: Builds deterministic Additional Authenticated Data (AAD) binding security-sensitive
+         * routing metadata to the AEAD cipher context for ACK packets.
+         */
+        fun computeAckMetadataAad(
+            originId: String,
+            finalDestId: String,
+            ackPacketId: String,
+            timestamp: Long
+        ): ByteArray =
+            "ROUTED_ACK_AAD:$originId:$finalDestId:$ackPacketId:$timestamp".toByteArray(Charsets.UTF_8)
     }
 
     // ── Incoming packet routing ───────────────────────────────────────────────
@@ -124,10 +136,78 @@ class MeshRouter @Inject constructor(
         val isBroadcast   = packet.isBroadcast
         val needForward   = !isForMe  // broadcasts are always forwarded AND delivered
 
+        // ── Phase 4C: ACK Handling ──────────────────────────────────────────
+        if (packet.type == PacketType.ACK) {
+            if (isForMe) {
+                // Sender received an ACK for an outgoing message
+                val aad = computeAckMetadataAad(
+                    originId    = packet.originId,
+                    finalDestId = packet.finalDestId,
+                    ackPacketId = packet.messageId,
+                    timestamp   = packet.timestamp
+                )
+                val decryptedBytes = eciesService.decryptFromBase64(packet.content, aad)
+                if (decryptedBytes == null) {
+                    Timber.w("SECURITY: ACK decryption/verification failed from origin=${packet.originId}")
+                    return@withContext RoutingResult.Drop
+                }
+
+                val ackMessageId = try {
+                    val json = JSONObject(String(decryptedBytes, Charsets.UTF_8))
+                    json.getString("ackMessageId")
+                } catch (e: Exception) {
+                    Timber.w(e, "MeshRouter: malformed ACK payload from origin=${packet.originId}")
+                    return@withContext RoutingResult.Drop
+                }
+
+                // Verify the original message exists, we are the sender, and packet.originId is the intended recipient
+                val originalMsg = messageRepository.getMessageById(ackMessageId)
+                if (originalMsg == null) {
+                    Timber.w("MeshRouter: received ACK for unknown message $ackMessageId — ignoring")
+                    return@withContext RoutingResult.Drop
+                }
+
+                if (originalMsg.receiverId != packet.originId) {
+                    Timber.w("SECURITY: Spoofed ACK rejected — original receiver (${originalMsg.receiverId}) != ACK origin (${packet.originId})")
+                    return@withContext RoutingResult.Drop
+                }
+
+                if (originalMsg.senderId != myDeviceId) {
+                    Timber.w("SECURITY: ACK rejected — original sender (${originalMsg.senderId}) is not local device ($myDeviceId)")
+                    return@withContext RoutingResult.Drop
+                }
+
+                messageRepository.updateDeliveryStatus(ackMessageId, DeliveryStatus.DELIVERED)
+                Timber.i("MeshRouter: ACK verified for $ackMessageId from ${packet.originId} -> DELIVERED")
+
+                return@withContext RoutingResult.Processed(
+                    localMessage   = null,
+                    forwardTargets = emptyList()
+                )
+            } else {
+                // Relay node: forward ACK toward finalDestId
+                val forwardTargets = buildForwardTargets(
+                    packet         = packet,
+                    fromEndpointId = fromEndpointId,
+                    connectedPeers = connectedPeers,
+                    isForMe        = false
+                )
+                return@withContext RoutingResult.Processed(
+                    localMessage   = null,
+                    forwardTargets = forwardTargets
+                )
+            }
+        }
+
         // 3. Local delivery
         var localMessage: Message? = null
+        val ackTargets = mutableListOf<ForwardTarget>()
         if (isForMe || isBroadcast) {
             localMessage = decryptAndPersist(packet)
+            // Phase 4C: Generate ACK only after successful authentication, decryption, and persistence
+            if (localMessage != null && !isBroadcast && packet.type != PacketType.ACK) {
+                ackTargets.addAll(generateAckTargets(packet, connectedPeers))
+            }
         }
 
         // 4. Forward / flood
@@ -142,7 +222,7 @@ class MeshRouter @Inject constructor(
 
         RoutingResult.Processed(
             localMessage   = localMessage,
-            forwardTargets = forwardTargets
+            forwardTargets = forwardTargets + ackTargets
         )
     }
 
@@ -564,6 +644,76 @@ class MeshRouter @Inject constructor(
             Timber.w("MeshRouter: transport failed for ${packet.messageId}, retained in queue as QUEUED")
         }
     }
+    // ── Phase 4C: ACK generation ──────────────────────────────────────────────
+
+    /**
+     * Generates an authenticated ACK [MeshPacket] for an accepted, decrypted, and persisted message.
+     * Returns forward targets for immediate dispatch, or enqueues if no peers are currently connected.
+     */
+    suspend fun generateAckTargets(
+        originalPacket: MeshPacket,
+        connectedPeers: Map<String, String>
+    ): List<ForwardTarget> = withContext(Dispatchers.IO) {
+        // Broadcast and ACK packets never generate ACKs
+        if (originalPacket.isBroadcast || originalPacket.type == PacketType.BROADCAST || originalPacket.type == PacketType.ACK) {
+            return@withContext emptyList()
+        }
+
+        val senderDeviceId = originalPacket.originId
+        val senderDevice = deviceRepository.getDeviceById(senderDeviceId)
+        if (senderDevice == null) {
+            Timber.w("MeshRouter: cannot send ACK to $senderDeviceId — public key unknown")
+            return@withContext emptyList()
+        }
+
+        val now = System.currentTimeMillis()
+        val ackPacketId = UUID.randomUUID().toString()
+        val ackPayloadJson = JSONObject().apply {
+            put("ackMessageId", originalPacket.messageId)
+            put("ackTimestamp", now)
+        }
+        val ackPayloadBytes = ackPayloadJson.toString().toByteArray(Charsets.UTF_8)
+        val aad = computeAckMetadataAad(
+            originId    = myDeviceId,
+            finalDestId = senderDeviceId,
+            ackPacketId = ackPacketId,
+            timestamp   = now
+        )
+
+        val encryptedAckContent = eciesService.encryptToBase64(ackPayloadBytes, senderDevice.publicKey, aad)
+
+        val ackPacket = MeshPacket(
+            senderId     = myDeviceId,
+            receiverId   = senderDeviceId,
+            content      = encryptedAckContent,
+            timestamp    = now,
+            type         = PacketType.ACK,
+            messageId    = ackPacketId,
+            originId     = myDeviceId,
+            finalDestId  = senderDeviceId,
+            hopCount     = 0,
+            maxHops      = 7,
+            senderName   = ""
+        )
+
+        seenMessageCache.markSeen(ackPacketId, myDeviceId)
+
+        val forwardTargets = buildForwardTargets(
+            packet         = ackPacket,
+            fromEndpointId = null,
+            connectedPeers = connectedPeers,
+            isForMe        = false
+        )
+
+        if (forwardTargets.isEmpty()) {
+            enqueuePending(ackPacket, senderDeviceId, now)
+            Timber.i("MeshRouter: ACK for ${originalPacket.messageId} enqueued for future delivery")
+            return@withContext emptyList()
+        }
+
+        Timber.i("MeshRouter: generated ACK for ${originalPacket.messageId} → $senderDeviceId")
+        forwardTargets
+    }
 }
 
 // ── Routing result ────────────────────────────────────────────────────────────
@@ -602,7 +752,7 @@ private fun MeshPacket.toJson(): String {
     sb.append(""""hopCount":$hopCount,"maxHops":$maxHops,""")
     val hist = routeHistory.joinToString(",") { "\"$it\"" }
     sb.append(""""routeHistory":[$hist]""")
-    if (type != PacketType.ROUTED_CHAT && senderName.isNotEmpty()) {
+    if (type != PacketType.ROUTED_CHAT && type != PacketType.ACK && senderName.isNotEmpty()) {
         sb.append(""", "senderName":"${senderName.replace("\\", "\\\\").replace("\"", "\\\"")}"}""")
     } else {
         sb.append("}")

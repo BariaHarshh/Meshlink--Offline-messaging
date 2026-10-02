@@ -22,9 +22,9 @@ fun MeshPacket.toBytes(): ByteArray {
         put("hopCount",     hopCount)
         put("maxHops",      maxHops)
         put("routeHistory", histArray)
-        // Phase 3A: Outer routing header never exposes senderName for multi-hop ROUTED_CHAT packets.
+        // Phase 3A: Outer routing header never exposes senderName for multi-hop ROUTED_CHAT or ACK packets.
         // Intermediate relays only require routing identifiers (originId, finalDestId, hopCount).
-        if (type != MeshPacket.PacketType.ROUTED_CHAT && senderName.isNotEmpty()) {
+        if (type != MeshPacket.PacketType.ROUTED_CHAT && type != MeshPacket.PacketType.ACK && senderName.isNotEmpty()) {
             put("senderName", senderName)
         }
     }
