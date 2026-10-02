@@ -142,5 +142,45 @@ class MessageDeliveryStatusTest {
             executedSql[1].contains("UPDATE messages SET deliveryStatus = 'DELIVERED' WHERE delivered = 1")
         )
     }
+
+    @Test
+    fun `MIGRATION_5_6 metadata is correct`() {
+        assertEquals(5, AppDatabase.MIGRATION_5_6.startVersion)
+        assertEquals(6, AppDatabase.MIGRATION_5_6.endVersion)
+    }
+
+    @Test
+    fun `MIGRATION_5_6 executes correct non-destructive DDL and derives valid expiresAt for legacy messages`() {
+        val executedSql = mutableListOf<String>()
+        val dbProxy = java.lang.reflect.Proxy.newProxyInstance(
+            androidx.sqlite.db.SupportSQLiteDatabase::class.java.classLoader,
+            arrayOf(androidx.sqlite.db.SupportSQLiteDatabase::class.java)
+        ) { _, method, args ->
+            if (method.name == "execSQL" && args != null && args.isNotEmpty()) {
+                executedSql.add(args[0] as String)
+            }
+            null
+        } as androidx.sqlite.db.SupportSQLiteDatabase
+
+        AppDatabase.MIGRATION_5_6.migrate(dbProxy)
+
+        assertEquals(4, executedSql.size)
+        assertTrue(
+            "Must add retryCount column with default 0",
+            executedSql[0].contains("ALTER TABLE messages ADD COLUMN retryCount INTEGER NOT NULL DEFAULT 0")
+        )
+        assertTrue(
+            "Must add nextRetryAt column with default 0",
+            executedSql[1].contains("ALTER TABLE messages ADD COLUMN nextRetryAt INTEGER NOT NULL DEFAULT 0")
+        )
+        assertTrue(
+            "Must add expiresAt column with default 0",
+            executedSql[2].contains("ALTER TABLE messages ADD COLUMN expiresAt INTEGER NOT NULL DEFAULT 0")
+        )
+        assertTrue(
+            "Must derive 48-hour expiration for legacy messages",
+            executedSql[3].contains("UPDATE messages SET expiresAt = timestamp + 172800000 WHERE expiresAt = 0")
+        )
+    }
 }
 

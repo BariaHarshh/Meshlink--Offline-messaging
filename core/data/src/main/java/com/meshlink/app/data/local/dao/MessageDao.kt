@@ -13,11 +13,70 @@ interface MessageDao {
     suspend fun insert(message: MessageEntity)
 
     /**
-     * Phase 4A: Updates ONLY the delivery status of a message.
-     * Does not modify ciphertext, timestamp, senderId, receiverId, or messageId.
+     * Phase 4A/4D: Updates ONLY the delivery status of a message.
+     * Preserves terminal DELIVERED status against regression.
      */
-    @Query("UPDATE messages SET deliveryStatus = :status, delivered = CASE WHEN :status = 'DELIVERED' THEN 1 ELSE 0 END WHERE id = :messageId")
+    @Query("""
+        UPDATE messages 
+        SET deliveryStatus = :status, 
+            delivered = CASE WHEN :status = 'DELIVERED' THEN 1 ELSE delivered END 
+        WHERE id = :messageId 
+          AND (:status = 'DELIVERED' OR deliveryStatus != 'DELIVERED')
+    """)
     suspend fun updateDeliveryStatus(messageId: String, status: String)
+
+    /**
+     * Phase 4D: Atomically claims a message for retry and increments its retryCount.
+     * Returns 1 if claimed, 0 if another worker already claimed it or status changed.
+     */
+    @Query("""
+        UPDATE messages 
+        SET retryCount = retryCount + 1, 
+            nextRetryAt = :nextRetryAt 
+        WHERE id = :messageId 
+          AND deliveryStatus IN ('SENT', 'QUEUED') 
+          AND retryCount < :maxRetries 
+          AND nextRetryAt <= :now 
+          AND expiresAt > :now
+    """)
+    suspend fun claimRetry(messageId: String, now: Long, nextRetryAt: Long, maxRetries: Int): Int
+
+    /**
+     * Phase 4D: Returns unacknowledged outgoing messages eligible for retry.
+     */
+    @Query("""
+        SELECT * FROM messages 
+        WHERE senderId = :myDeviceId 
+          AND deliveryStatus IN ('SENT', 'QUEUED') 
+          AND retryCount < :maxRetries 
+          AND nextRetryAt <= :now 
+          AND expiresAt > :now 
+        ORDER BY nextRetryAt ASC
+    """)
+    suspend fun getEligibleRetries(myDeviceId: String, now: Long, maxRetries: Int): List<MessageEntity>
+
+    /**
+     * Phase 4D: Marks expired or retry-exhausted unresolved messages as FAILED.
+     */
+    @Query("""
+        UPDATE messages 
+        SET deliveryStatus = 'FAILED' 
+        WHERE deliveryStatus IN ('PENDING', 'QUEUED', 'SENT') 
+          AND (expiresAt <= :now OR retryCount >= :maxRetries)
+    """)
+    suspend fun markFailedIfExpiredOrExhausted(now: Long, maxRetries: Int): Int
+
+    /**
+     * Phase 4D: Marks a specific message as FAILED if not already DELIVERED.
+     */
+    @Query("UPDATE messages SET deliveryStatus = 'FAILED' WHERE id = :messageId AND deliveryStatus != 'DELIVERED'")
+    suspend fun markFailed(messageId: String)
+
+    /**
+     * Phase 4D: Updates retry schedule for a message.
+     */
+    @Query("UPDATE messages SET retryCount = :retryCount, nextRetryAt = :nextRetryAt WHERE id = :messageId AND deliveryStatus != 'DELIVERED'")
+    suspend fun updateRetrySchedule(messageId: String, retryCount: Int, nextRetryAt: Long)
 
     @Query("SELECT * FROM messages WHERE id = :messageId LIMIT 1")
     suspend fun getMessageById(messageId: String): MessageEntity?

@@ -101,6 +101,23 @@ class NearbyRepositoryImpl @Inject constructor(
      */
     private val endpointIdToDeviceId = ConcurrentHashMap<String, String>()
 
+    init {
+        scope.launch(Dispatchers.IO) {
+            while (true) {
+                delay(15_000L)
+                try {
+                    val peers = getConnectedPeers()
+                    if (peers.isNotEmpty()) {
+                        val retries = meshRouter.retryEligibleMessages(peers)
+                        retries.forEach { target -> dispatchToNearby(target) }
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "NearbyRepository: error during periodic retry check")
+                }
+            }
+        }
+    }
+
     // ── Nearby callbacks ──────────────────────────────────────────────────────
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
@@ -272,12 +289,14 @@ class NearbyRepositoryImpl @Inject constructor(
             )
         )
 
-        // 5. Phase 4: flush any queued messages for newly reachable devices
+        // 5. Phase 4: flush any queued messages and scan for eligible retries
         val peers   = getConnectedPeers()
         val pending = meshRouter.flushPendingQueue(peers)
         pending.forEach { target -> dispatchToNearby(target) }
+        val retries = meshRouter.retryEligibleMessages(peers)
+        retries.forEach { target -> dispatchToNearby(target) }
 
-        Timber.i("Session CONNECTED with $endpointId — authenticated E2E active, ${pending.size} pending flushed")
+        Timber.i("Session CONNECTED with $endpointId — authenticated E2E active, ${pending.size} pending flushed, ${retries.size} retried")
     }
 
     // ── Phase 4: incoming routed packet ──────────────────────────────────────

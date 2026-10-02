@@ -21,7 +21,10 @@ fun MessageEntity.toDomain(): Message {
         timestamp = timestamp,
         delivered = delivered || status == DeliveryStatus.DELIVERED,
         senderName = senderName,
-        deliveryStatus = status
+        deliveryStatus = status,
+        retryCount = retryCount,
+        nextRetryAt = nextRetryAt,
+        expiresAt = expiresAt
     )
 }
 
@@ -33,7 +36,10 @@ fun Message.toEntity(): MessageEntity = MessageEntity(
     timestamp = timestamp,
     delivered = delivered || deliveryStatus == DeliveryStatus.DELIVERED,
     senderName = senderName,
-    deliveryStatus = deliveryStatus.name
+    deliveryStatus = deliveryStatus.name,
+    retryCount = retryCount,
+    nextRetryAt = nextRetryAt,
+    expiresAt = expiresAt
 )
 
 fun KnownDeviceEntity.toDomain(): KnownDevice = KnownDevice(

@@ -36,4 +36,21 @@ class MessageRepositoryImpl @Inject constructor(
 
     override suspend fun getMessageById(messageId: String): Message? =
         messageDao.getMessageById(messageId)?.toDomain()
+
+    override suspend fun claimRetry(messageId: String, now: Long, nextRetryAt: Long, maxRetries: Int): Boolean =
+        messageDao.claimRetry(messageId, now, nextRetryAt, maxRetries) > 0
+
+    override suspend fun getEligibleRetries(myDeviceId: String, now: Long, maxRetries: Int): List<Message> =
+        messageDao.getEligibleRetries(myDeviceId, now, maxRetries).map { it.toDomain() }
+
+    override suspend fun markFailedIfExpiredOrExhausted(now: Long, maxRetries: Int): Int =
+        messageDao.markFailedIfExpiredOrExhausted(now, maxRetries)
+
+    override suspend fun markFailed(messageId: String) {
+        messageDao.markFailed(messageId)
+    }
+
+    override suspend fun updateRetrySchedule(messageId: String, retryCount: Int, nextRetryAt: Long) {
+        messageDao.updateRetrySchedule(messageId, retryCount, nextRetryAt)
+    }
 }

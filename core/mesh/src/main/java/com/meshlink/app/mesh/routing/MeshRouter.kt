@@ -333,6 +333,8 @@ class MeshRouter @Inject constructor(
             )
 
             // Persist plaintext on sender side (we know what we sent)
+            val initialNextRetry = timestamp + calculateNextRetryDelayMs(0)
+            val expiresAt = timestamp + Message.DEFAULT_TTL_MS
             messageRepository.insertMessage(
                 Message(
                     id             = messageId,
@@ -342,7 +344,10 @@ class MeshRouter @Inject constructor(
                     timestamp      = timestamp,
                     delivered      = false,
                     senderName     = localDisplayName,
-                    deliveryStatus = DeliveryStatus.PENDING
+                    deliveryStatus = DeliveryStatus.PENDING,
+                    retryCount     = 0,
+                    nextRetryAt    = initialNextRetry,
+                    expiresAt      = expiresAt
                 )
             )
 
@@ -424,7 +429,15 @@ class MeshRouter @Inject constructor(
             // Enforce global expiration: drop if expired
             if (pending.expiresAt <= now) {
                 pendingMessageRepository.remove(pending.id)
-                Timber.d("MeshRouter: dropped expired pending message")
+                messageRepository.markFailed(pending.id)
+                Timber.d("MeshRouter: dropped expired pending message ${pending.id}")
+                continue
+            }
+
+            // Check if corresponding message is already DELIVERED or FAILED
+            val msg = messageRepository.getMessageById(pending.id)
+            if (msg != null && (msg.deliveryStatus == DeliveryStatus.DELIVERED || msg.deliveryStatus == DeliveryStatus.FAILED)) {
+                pendingMessageRepository.remove(pending.id)
                 continue
             }
 
@@ -627,7 +640,13 @@ class MeshRouter @Inject constructor(
     suspend fun onSendSuccess(messageId: String, originId: String) = withContext(Dispatchers.IO) {
         pendingMessageRepository.remove(messageId)
         if (originId == myDeviceId) {
-            messageRepository.updateDeliveryStatus(messageId, DeliveryStatus.SENT)
+            val now = System.currentTimeMillis()
+            val msg = messageRepository.getMessageById(messageId)
+            if (msg != null && msg.deliveryStatus != DeliveryStatus.DELIVERED) {
+                val nextRetry = now + calculateNextRetryDelayMs(msg.retryCount)
+                messageRepository.updateRetrySchedule(messageId, msg.retryCount, nextRetry)
+                messageRepository.updateDeliveryStatus(messageId, DeliveryStatus.SENT)
+            }
             Timber.d("MeshRouter: transmission confirmed for $messageId -> SENT")
         }
     }
@@ -712,6 +731,118 @@ class MeshRouter @Inject constructor(
         }
 
         Timber.i("MeshRouter: generated ACK for ${originalPacket.messageId} → $senderDeviceId")
+        forwardTargets
+    }
+
+    // ── Phase 4D: Bounded Retry & Recovery ────────────────────────────────────
+
+    /**
+     * Calculates truncated exponential backoff delay with jitter.
+     * Retry 1: ~30s, Retry 2: ~60s, Retry 3: ~120s, Retry 4: ~240s, Retry 5: ~480s (max 600s).
+     */
+    fun calculateNextRetryDelayMs(retryCount: Int): Long {
+        val baseDelayMs = Message.BASE_RETRY_DELAY_MS
+        val maxDelayMs = Message.MAX_RETRY_DELAY_MS
+        val multiplier = 1L shl retryCount.coerceIn(0, 10)
+        val exponential = baseDelayMs * multiplier
+        val bounded = minOf(exponential, maxDelayMs)
+        val jitter = (0..5000).random()
+        return bounded + jitter
+    }
+
+    /**
+     * Phase 4D: Scans for retry-eligible unresolved messages (SENT or QUEUED),
+     * enforces the immutable expiration deadline and maximum retry count,
+     * atomically claims eligible messages, and generates ForwardTargets for retransmission.
+     */
+    suspend fun retryEligibleMessages(
+        connectedPeers: Map<String, String>
+    ): List<ForwardTarget> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+
+        // 1. Mark expired or retry-exhausted messages as FAILED
+        messageRepository.markFailedIfExpiredOrExhausted(now, Message.MAX_RETRY_COUNT)
+
+        // 2. Query candidates eligible for retry
+        val candidates = messageRepository.getEligibleRetries(myDeviceId, now, Message.MAX_RETRY_COUNT)
+        if (candidates.isEmpty()) return@withContext emptyList()
+
+        val forwardTargets = mutableListOf<ForwardTarget>()
+
+        for (candidate in candidates) {
+            // Expiration check: if now >= expiresAt or max retries reached, mark FAILED and skip
+            if (now >= candidate.expiresAt || candidate.retryCount >= Message.MAX_RETRY_COUNT) {
+                messageRepository.markFailed(candidate.id)
+                pendingMessageRepository.remove(candidate.id)
+                continue
+            }
+
+            // Calculate next retry delay for next attempt
+            val nextDelay = calculateNextRetryDelayMs(candidate.retryCount + 1)
+            val nextRetryAt = now + nextDelay
+
+            // Atomic database claim: only proceed if this worker successfully claimed the increment
+            val claimed = messageRepository.claimRetry(candidate.id, now, nextRetryAt, Message.MAX_RETRY_COUNT)
+            if (!claimed) {
+                Timber.d("MeshRouter: retry for ${candidate.id} was already claimed or status changed, skipping")
+                continue
+            }
+
+            // Reconstruct the exact same packet preserving original messageId, timestamp, originId, finalDestId, and ciphertext
+            val destDevice = deviceRepository.getDeviceById(candidate.receiverId)
+            if (destDevice == null) {
+                Timber.w("MeshRouter: cannot retry ${candidate.id} — recipient public key unknown")
+                continue
+            }
+
+            val plaintext = String(candidate.ciphertext, Charsets.UTF_8)
+            val aad = computeMetadataAad(
+                originId    = candidate.senderId,
+                finalDestId = candidate.receiverId,
+                messageId   = candidate.id,
+                timestamp   = candidate.timestamp
+            )
+
+            val innerPayloadJson = JSONObject().apply {
+                put("text", plaintext)
+                if (candidate.senderName.isNotEmpty()) {
+                    put("senderName", candidate.senderName)
+                }
+            }
+            val innerPayloadBytes = innerPayloadJson.toString().toByteArray(Charsets.UTF_8)
+            val eciesContent = eciesService.encryptToBase64(innerPayloadBytes, destDevice.publicKey, aad)
+
+            val packet = MeshPacket(
+                senderId     = myDeviceId,
+                receiverId   = candidate.receiverId,
+                content      = eciesContent,
+                timestamp    = candidate.timestamp,
+                type         = PacketType.ROUTED_CHAT,
+                messageId    = candidate.id,
+                originId     = candidate.senderId,
+                finalDestId  = candidate.receiverId,
+                hopCount     = 0,
+                maxHops      = 7,
+                senderName   = ""
+            )
+
+            val targets = buildForwardTargets(
+                packet         = packet,
+                fromEndpointId = null,
+                connectedPeers = connectedPeers,
+                isForMe        = false
+            )
+
+            if (targets.isEmpty()) {
+                enqueuePending(packet, candidate.receiverId, candidate.timestamp)
+                messageRepository.updateDeliveryStatus(candidate.id, DeliveryStatus.QUEUED)
+                Timber.i("MeshRouter: retried ${candidate.id} but no active route, retained as QUEUED")
+            } else {
+                forwardTargets.addAll(targets)
+                Timber.i("MeshRouter: retrying message ${candidate.id} (attempt ${candidate.retryCount + 1}/${Message.MAX_RETRY_COUNT})")
+            }
+        }
+
         forwardTargets
     }
 }

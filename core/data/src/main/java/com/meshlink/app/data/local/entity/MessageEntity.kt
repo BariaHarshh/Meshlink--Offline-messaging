@@ -12,7 +12,10 @@ data class MessageEntity(
     val timestamp: Long,
     val delivered: Boolean,
     val senderName: String = "",
-    val deliveryStatus: String = if (delivered) "DELIVERED" else "PENDING"
+    val deliveryStatus: String = if (delivered) "DELIVERED" else "PENDING",
+    val retryCount: Int = 0,
+    val nextRetryAt: Long = 0L,
+    val expiresAt: Long = timestamp + 48 * 60 * 60 * 1000L
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

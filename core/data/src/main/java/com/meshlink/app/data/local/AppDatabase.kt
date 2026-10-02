@@ -17,7 +17,7 @@ import com.meshlink.app.data.local.entity.PendingMessageEntity
         KnownDeviceEntity::class,
         PendingMessageEntity::class   // Phase 4: store-and-forward queue
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -89,6 +89,29 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "UPDATE messages SET deliveryStatus = 'DELIVERED' WHERE delivered = 1"
+                )
+            }
+        }
+
+        /**
+         * v5 → v6: adds retryCount, nextRetryAt, and expiresAt columns to messages table for Phase 4D.
+         * Derives valid expiresAt (timestamp + 48 hours = timestamp + 172800000 ms) for legacy messages
+         * so legacy messages do not immediately become expired.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE messages ADD COLUMN retryCount INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE messages ADD COLUMN nextRetryAt INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE messages ADD COLUMN expiresAt INTEGER NOT NULL DEFAULT 0"
+                )
+                // 48 hours = 48 * 60 * 60 * 1000 = 172800000 ms
+                db.execSQL(
+                    "UPDATE messages SET expiresAt = timestamp + 172800000 WHERE expiresAt = 0"
                 )
             }
         }
