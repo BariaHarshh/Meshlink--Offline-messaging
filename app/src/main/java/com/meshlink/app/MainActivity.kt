@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
                                     currentRoute = currentRoute,
                                     onNavigate   = { route ->
                                         navController.navigate(route) {
-                                            popUpTo(Screen.Chats.route) {
+                                            popUpTo(Screen.HomeTab.route) {
                                                 saveState = true
                                             }
                                             launchSingleTop = true

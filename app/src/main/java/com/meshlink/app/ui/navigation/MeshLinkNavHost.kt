@@ -45,7 +45,7 @@ fun MeshLinkNavHost(
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
                 onGetStarted = {
-                    navController.navigate(Screen.Chats.route) {
+                    navController.navigate(Screen.HomeTab.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }

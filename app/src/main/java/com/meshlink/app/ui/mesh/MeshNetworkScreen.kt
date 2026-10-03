@@ -159,9 +159,9 @@ fun MeshNetworkScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val nodesCount = if (devices.isNotEmpty()) devices.size else 4
-                    val routesCount = if (connectedPeerCount > 0) connectedPeerCount else 3
-                    val hopsCount = if (connectedPeerCount > 1) 2 else 2
+                    val nodesCount = devices.size
+                    val routesCount = connectedPeerCount
+                    val hopsCount = if (connectedPeerCount > 0) 1 else 0
 
                     MetricCard(
                         value = nodesCount.toString(),
@@ -185,7 +185,7 @@ fun MeshNetworkScreen(
             item {
                 Button(
                     onClick = {
-                        Toast.makeText(context, "Interactive mesh topology active", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Interactive mesh topology active (${devices.size} nodes)", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -230,100 +230,127 @@ fun MeshNetworkScreen(
             }
 
             // ── Peers List ────────────────────────────────────────────────────
-            val displayList = if (devices.isNotEmpty()) {
-                devices
-            } else {
-                // Friendly fallback reference peers when scanning
-                listOf(
-                    DiscoveredDevice("sim_1", "Alex"),
-                    DiscoveredDevice("sim_2", "Priya"),
-                    DiscoveredDevice("sim_3", "Rohan"),
-                    DiscoveredDevice("sim_4", "Aisha")
-                )
-            }
-
-            items(displayList, key = { it.endpointId }) { device ->
-                val state = connectionStates[device.endpointId] ?: ConnectionState.IDLE
-                val isConnected = state == ConnectionState.CONNECTED
-
-                Surface(
-                    shape = RoundedCornerShape(MeshLinkRadius.Card),
-                    color = WarmWhite,
-                    shadowElevation = 0.5.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(MeshLinkRadius.Card))
-                        .clickable {
-                            if (onNavigateToPeerDetails != null) {
-                                onNavigateToPeerDetails(device.endpointId, device.name)
-                            } else {
-                                viewModel.onDeviceClick(device)
-                            }
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+            if (devices.isEmpty()) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(MeshLinkRadius.Card),
+                        color = WarmWhite,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(SecondaryAccent.copy(alpha = 0.35f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = device.name.take(1).uppercase(),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryText
+                            Icon(
+                                imageVector = Icons.Default.Hub,
+                                contentDescription = null,
+                                tint = PrimaryAccent,
+                                modifier = Modifier.size(32.dp)
                             )
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = device.name,
+                                text = "No nearby devices found",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = PrimaryText
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (isConnected) "Connected" else "In range · Direct link",
-                                fontSize = 12.sp,
-                                color = if (isConnected) SoftGreen else SecondaryText
+                                text = "Bring other MeshLink devices within Bluetooth/Wi-Fi range to automatically form the mesh.",
+                                fontSize = 13.sp,
+                                color = SecondaryText,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
+                    }
+                }
+            } else {
+                items(devices, key = { it.endpointId }) { device ->
+                    val state = connectionStates[device.endpointId] ?: ConnectionState.IDLE
+                    val isConnected = state == ConnectionState.CONNECTED
 
-                        // Action button: Connect / Chat
-                        if (isConnected) {
-                            IconButton(
-                                onClick = { onDeviceClick(device.endpointId, device.name) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ChatBubbleOutline,
-                                    contentDescription = "Chat",
-                                    tint = PrimaryAccent,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                    Surface(
+                        shape = RoundedCornerShape(MeshLinkRadius.Card),
+                        color = WarmWhite,
+                        shadowElevation = 0.5.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(MeshLinkRadius.Card))
+                            .clickable {
+                                if (onNavigateToPeerDetails != null) {
+                                    onNavigateToPeerDetails(device.endpointId, device.name)
+                                } else {
+                                    viewModel.onDeviceClick(device)
+                                }
                             }
-                        } else {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = SoftLavender.copy(alpha = 0.5f),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { viewModel.onDeviceClick(device) }
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(SecondaryAccent.copy(alpha = 0.35f)),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Connect",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = PrimaryText,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    text = device.name.take(1).uppercase(),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryText
                                 )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = device.name,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryText
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (isConnected) "Connected" else "In range · Direct link",
+                                    fontSize = 12.sp,
+                                    color = if (isConnected) SoftGreen else SecondaryText
+                                )
+                            }
+
+                            // Action button: Connect / Chat
+                            if (isConnected) {
+                                IconButton(
+                                    onClick = { onDeviceClick(device.endpointId, device.name) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ChatBubbleOutline,
+                                        contentDescription = "Chat",
+                                        tint = PrimaryAccent,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            } else {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = SoftLavender.copy(alpha = 0.5f),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { viewModel.onDeviceClick(device) }
+                                ) {
+                                    Text(
+                                        text = "Connect",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = PrimaryText,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -389,58 +416,59 @@ private fun MeshTopologyVisualCard(
 
                 // 4 Orthogonal radiating lines matching Screen 6
                 drawLine(
-                    color = PrimaryAccent.copy(alpha = 0.45f),
+                    color = PrimaryAccent.copy(alpha = 0.35f),
                     start = Offset(cx, cy - r2),
                     end   = Offset(cx, cy + r2),
-                    strokeWidth = 2.0f
+                    strokeWidth = 1.5f
                 )
                 drawLine(
-                    color = PrimaryAccent.copy(alpha = 0.45f),
+                    color = PrimaryAccent.copy(alpha = 0.35f),
                     start = Offset(cx - r2, cy),
                     end   = Offset(cx + r2, cy),
-                    strokeWidth = 2.0f
+                    strokeWidth = 1.5f
                 )
             }
 
-            // Top Peer (Alex)
-            TopologyNode(
-                label = "Alex",
-                initial = "A",
-                color = SoftGreen,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 18.dp)
-            )
+            if (devices.isEmpty()) {
+                // Pulse indicator when scanning
+                Text(
+                    text = "Scanning nearby mesh frequencies...",
+                    fontSize = 12.sp,
+                    color = SecondaryText,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                )
+            } else {
+                // Render discovered nodes dynamically
+                val nodeColors = listOf(SoftGreen, SecondaryAccent, PrimaryAccent, SoftLavender)
+                devices.take(6).forEachIndexed { index, device ->
+                    val angle = (2.0 * Math.PI / devices.size.coerceAtMost(6)) * index - (Math.PI / 2.0)
+                    val r = 85.0
+                    val offsetX = (r * cos(angle)).dp
+                    val offsetY = (r * sin(angle)).dp
+                    val color = nodeColors[index % nodeColors.size]
 
-            // Left Peer (Priya)
-            TopologyNode(
-                label = "Priya",
-                initial = "P",
-                color = SecondaryAccent,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 22.dp)
-            )
-
-            // Right Peer (Rohan)
-            TopologyNode(
-                label = "Rohan",
-                initial = "R",
-                color = PrimaryAccent,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 22.dp)
-            )
-
-            // Bottom Peer (Aisha)
-            TopologyNode(
-                label = "Aisha",
-                initial = "A",
-                color = SoftLavender,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 18.dp)
-            )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(
+                                start = if (offsetX > 0.dp) offsetX * 2 else 0.dp,
+                                end = if (offsetX < 0.dp) -offsetX * 2 else 0.dp,
+                                top = if (offsetY < 0.dp) -offsetY * 2 else 0.dp,
+                                bottom = if (offsetY > 0.dp) offsetY * 2 else 0.dp
+                            )
+                            .clickable { onDeviceClick(device) }
+                    ) {
+                        TopologyNode(
+                            label = device.name,
+                            initial = device.name.take(1).uppercase(),
+                            color = color
+                        )
+                    }
+                }
+            }
 
             // Center: YOU
             Column(

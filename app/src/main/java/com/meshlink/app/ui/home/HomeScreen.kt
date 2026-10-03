@@ -284,13 +284,13 @@ private fun MeshNetworkStatusCard(
             // Row 2: Peer count & Routes count
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = if (peerCount > 0) "$peerCount nearby ${if (peerCount == 1) "peer" else "peers"}" else "4 nearby peers",
+                    text = if (peerCount > 0) "$peerCount nearby ${if (peerCount == 1) "peer" else "peers"}" else "0 nearby peers in range",
                     fontSize = 14.sp,
                     color = SecondaryText,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = if (activeRoutesCount > 0) "$activeRoutesCount active routes" else "2 active routes",
+                    text = if (activeRoutesCount > 0) "$activeRoutesCount active ${if (activeRoutesCount == 1) "route" else "routes"}" else "0 active routes",
                     fontSize = 13.sp,
                     color = MutedText
                 )
@@ -307,20 +307,20 @@ private fun MeshNetworkStatusCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(SoftGreenContainer)
+                        .background(if (isOnline) SoftGreenContainer else SoftLavender.copy(alpha = 0.35f))
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Shield,
                         contentDescription = null,
-                        tint = SoftGreen,
+                        tint = if (isOnline) SoftGreen else SecondaryText,
                         modifier = Modifier.size(15.dp)
                     )
                     Text(
-                        text = "Network healthy",
+                        text = if (isOnline) "Network healthy" else "Mesh standby",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = SoftGreen
+                        color = if (isOnline) SoftGreen else SecondaryText
                     )
                 }
 
