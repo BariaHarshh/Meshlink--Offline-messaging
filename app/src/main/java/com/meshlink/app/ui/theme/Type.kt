@@ -6,7 +6,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 val MeshTypography = Typography(
-    // Emergency screen titles — "MESH ACTIVE", "3 DEVICES NEARBY"
+    // Screen titles — "MESH ACTIVE", "3 DEVICES NEARBY"
     displayLarge = TextStyle(
         fontWeight    = FontWeight.ExtraBold,
         fontSize      = 48.sp,

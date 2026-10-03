@@ -4,39 +4,39 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-// ── Light scheme — Figma design system ───────────────────────────────────────
+// ── Light scheme — MeshLink design system ───────────────────────────────────────
 private val MeshLinkColorScheme = lightColorScheme(
     primary             = Primary,
     onPrimary           = TextOnPrimary,
     primaryContainer    = PrimaryContainer,
-    onPrimaryContainer  = PrimaryDark,
+    onPrimaryContainer  = Primary,
 
     secondary           = Secondary,
     onSecondary         = TextOnPrimary,
     secondaryContainer  = SecondaryContainer,
-    onSecondaryContainer= SecondaryDark,
+    onSecondaryContainer= Secondary,
 
     tertiary            = Tertiary,
     onTertiary          = TextOnPrimary,
     tertiaryContainer   = TertiaryContainer,
-    onTertiaryContainer = TertiaryDark,
+    onTertiaryContainer = Tertiary,
 
-    background          = AppBackground,
+    background          = Background,
     onBackground        = TextPrimary,
-    surface             = AppBackground,
+    surface             = Surface,
     onSurface           = TextPrimary,
-    surfaceVariant      = CardSurface,
+    surfaceVariant      = SurfaceVariant,
     onSurfaceVariant    = TextSecondary,
 
     outline             = Outline,
     outlineVariant      = OutlineVariant,
 
-    error               = Primary,
+    error               = Error,
     onError             = TextOnPrimary,
-    errorContainer      = PrimaryLight,
-    onErrorContainer    = PrimaryDark,
+    errorContainer      = ErrorContainer,
+    onErrorContainer    = Error,
 
-    scrim               = Neutral.copy(alpha = 0.32f)
+    scrim               = TextPrimary.copy(alpha = 0.32f)
 )
 
 // ── App-level theme (light, white background) ───────────────────────────────
