@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.meshlink.app.data.repository.UserProfileManagerImpl
 import com.meshlink.app.domain.model.EmergencyContact
 import com.meshlink.app.domain.repository.NearbyRepository
+import com.meshlink.app.domain.repository.UserProfileManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
@@ -28,7 +29,6 @@ data class MedicalProfileState(
     val allergies:         String                = "",
     val medications:       String                = "",
     val emergencyContacts: List<EmergencyContact> = listOf(
-        // Pre-populated demo contacts matching the Figma design
         EmergencyContact(name = "Sarah Miller", relation = "Spouse",  phone = "+1 (555) 012-3456"),
         EmergencyContact(name = "David Vance",  relation = "Father",  phone = "+1 (555) 098-7654")
     ),
@@ -40,10 +40,9 @@ val bloodGroups = listOf("A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-")
 @HiltViewModel
 class MedicalProfileViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val nearbyRepository: NearbyRepository
+    private val nearbyRepository:   NearbyRepository,
+    private val userProfileManager: UserProfileManager
 ) : ViewModel() {
-
-
 
     private val prefs: SharedPreferences by lazy {
         UserProfileManagerImpl.getEncryptedProfilePrefs(context)
@@ -82,6 +81,11 @@ class MedicalProfileViewModel @Inject constructor(
     fun saveProfile() {
         val current = _state.value
 
+        // Update single source of truth UserProfileManager
+        if (current.fullName.isNotBlank()) {
+            userProfileManager.setDisplayName(current.fullName)
+        }
+
         // Serialize emergency contacts to JSON
         val contactsJson = JSONArray().apply {
             current.emergencyContacts.forEach { c ->
@@ -116,7 +120,7 @@ class MedicalProfileViewModel @Inject constructor(
     }
 
     private fun loadProfile(): MedicalProfileState {
-        val savedName = prefs.getString(UserProfileManagerImpl.KEY_FULL_NAME, null)
+        val savedName = userProfileManager.getDisplayName()
 
         // Deserialize emergency contacts from JSON
         val contacts = prefs.getString(UserProfileManagerImpl.KEY_EMERGENCY_CONTACTS, null)?.let { json ->
@@ -133,18 +137,17 @@ class MedicalProfileViewModel @Inject constructor(
                 }
             } catch (_: Exception) { null }
         } ?: listOf(
-            // Default demo contacts (only used on first launch)
             EmergencyContact(name = "Sarah Miller", relation = "Spouse",  phone = "+1 (555) 012-3456"),
             EmergencyContact(name = "David Vance",  relation = "Father",  phone = "+1 (555) 098-7654")
         )
 
         return MedicalProfileState(
-            fullName          = savedName ?: "ALEXANDER VANCE",
+            fullName          = savedName,
             bloodGroup        = prefs.getString(UserProfileManagerImpl.KEY_BLOOD_GROUP, "") ?: "",
             allergies         = prefs.getString(UserProfileManagerImpl.KEY_ALLERGIES, "")   ?: "",
             medications       = prefs.getString(UserProfileManagerImpl.KEY_MEDICATIONS, "") ?: "",
             emergencyContacts = contacts,
-            isSaved           = savedName != null  // mark as saved if loaded from prefs
+            isSaved           = true
         )
     }
 }

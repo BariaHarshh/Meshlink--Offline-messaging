@@ -4,8 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.meshlink.app.domain.model.ConnectionState
+import com.meshlink.app.domain.model.KnownDevice
 import com.meshlink.app.domain.model.Message
 import com.meshlink.app.domain.model.MeshPacket
+import com.meshlink.app.domain.repository.DeviceRepository
 import com.meshlink.app.domain.repository.MessageRepository
 import com.meshlink.app.domain.repository.NearbyRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,7 +31,8 @@ private const val SAFE_SIGNAL_TEXT = "\uD83D\uDFE2 I AM SAFE"
 class ChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val messageRepository: MessageRepository,
-    private val nearbyRepository: NearbyRepository,
+    private val deviceRepository:  DeviceRepository,
+    private val nearbyRepository:   NearbyRepository,
     @Named("localDeviceId") val localDeviceId: String
 ) : ViewModel() {
 
@@ -56,12 +59,25 @@ class ChatViewModel @Inject constructor(
      * Null until ECDH handshake completes; then updated reactively by watching [connectionStates].
      * [messages] is keyed off this via flatMapLatest so the Room query is always correct.
      */
-    private val peerDeviceId: StateFlow<String> = nearbyRepository.connectionStates
+    val peerDeviceId: StateFlow<String> = nearbyRepository.connectionStates
         .map { _ ->
             nearbyRepository.peerDeviceIdForEndpoint(liveEndpointId) ?: deviceId
         }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), deviceId)
+
+    /**
+     * KnownDevice domain model for this peer, queried reactively from Room.
+     * Exposes real verificationStatus (VERIFIED, UNVERIFIED, REVOKED, UNKNOWN).
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val peerDevice: StateFlow<KnownDevice?> = peerDeviceId
+        .flatMapLatest { id ->
+            deviceRepository.getAllDevices().map { list ->
+                list.find { it.deviceId == id }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
      * All messages for this conversation, always keyed by the STABLE peerDeviceId.

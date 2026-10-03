@@ -18,9 +18,12 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.WifiTethering
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,29 +44,33 @@ data class BottomNavItem(
     val route:          String,
     val label:          String,
     val selectedIcon:   ImageVector,
-    val unselectedIcon: ImageVector,
-    val isSos:          Boolean = false
+    val unselectedIcon: ImageVector
 )
 
 val bottomNavItems = listOf(
     BottomNavItem(
-        route          = Screen.Home.route,
-        label          = "CHATS",
+        route          = Screen.HomeTab.route,
+        label          = "Home",
+        selectedIcon   = Icons.Filled.Home,
+        unselectedIcon = Icons.Outlined.Home
+    ),
+    BottomNavItem(
+        route          = Screen.Chats.route,
+        label          = "Chats",
         selectedIcon   = Icons.Filled.Forum,
         unselectedIcon = Icons.Outlined.Forum
     ),
     BottomNavItem(
-        route          = Screen.Discovery.route,
-        label          = "DISCOVER",
+        route          = Screen.MeshNetwork.route,
+        label          = "Mesh",
         selectedIcon   = Icons.Filled.WifiTethering,
         unselectedIcon = Icons.Outlined.WifiTethering
     ),
     BottomNavItem(
-        route          = Screen.Sos.route,
-        label          = "SOS",
-        selectedIcon   = Icons.Filled.Warning,
-        unselectedIcon = Icons.Filled.Warning,
-        isSos          = true
+        route          = Screen.ProfileTab.route,
+        label          = "Profile",
+        selectedIcon   = Icons.Filled.Person,
+        unselectedIcon = Icons.Outlined.Person
     )
 )
 
@@ -76,7 +83,7 @@ fun MeshBottomNavBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         // Top border
         Box(
@@ -115,20 +122,12 @@ private fun NavItem(
     modifier: Modifier = Modifier
 ) {
     val iconColor by animateColorAsState(
-        targetValue   = when {
-            item.isSos -> MaterialTheme.colorScheme.primary
-            selected   -> MaterialTheme.colorScheme.primary
-            else       -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
+        targetValue   = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label         = "navIconColor"
     )
     val labelColor by animateColorAsState(
-        targetValue = when {
-            item.isSos -> MaterialTheme.colorScheme.primary
-            selected   -> MaterialTheme.colorScheme.primary
-            else       -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         label = "navLabelColor"
     )
 
@@ -143,11 +142,8 @@ private fun NavItem(
             modifier         = Modifier
                 .clip(RoundedCornerShape(50))
                 .background(
-                    when {
-                        item.isSos && selected -> MaterialTheme.colorScheme.primaryContainer
-                        selected               -> MaterialTheme.colorScheme.primaryContainer
-                        else                   -> Color.Transparent
-                    }
+                    if (selected) MaterialTheme.colorScheme.primaryContainer
+                    else Color.Transparent
                 )
                 .padding(horizontal = 18.dp, vertical = 5.dp),
             contentAlignment = Alignment.Center
@@ -164,8 +160,8 @@ private fun NavItem(
             text       = item.label,
             color      = labelColor,
             style      = MaterialTheme.typography.labelSmall,
-            fontWeight = if (item.isSos || selected) FontWeight.Bold else FontWeight.Medium,
-            fontSize   = 9.sp
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            fontSize   = 10.sp
         )
     }
 }

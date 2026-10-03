@@ -35,13 +35,37 @@ val ErrorContainer      = Color(0xFFFADADD)   // error container
 val AppBackground       = Background
 val CardSurface         = SurfaceVariant
 
-// ── Legacy Aliases (backward compat) ────────
+// ── Distance Badges ──────────────────────────────────────────────────────────
+val BadgeNear           = Tertiary
+val BadgeFar            = Secondary
+val BadgeVeryFar        = TextMuted
+
+// ── Legacy Aliases (backward compat) ─────────────────────────────────────────
 val StatusConnected     = Tertiary
 val StatusConnecting    = Secondary
 val StatusOffline       = Color(0xFFBDBDBD)
 val StatusError         = Error
 val PrimaryDark         = Color(0xFFA0555E)
 val PrimaryLight        = PrimaryContainer
+val EmergencyRed          = Primary
+val EmergencyRedDark      = PrimaryDark
+val EmergencyRedSurface   = Primary
+val EmergencyRedContainer = PrimaryContainer
+val EmergencyRedLight     = PrimaryLight
+val EmergencyGreen        = Tertiary
+val EmergencyGreenDark    = Tertiary
+val EmergencyGreenLight   = TertiaryContainer
+val EmergencyAmber        = Secondary
+val EmergencyAmberLight   = SecondaryContainer
+val EmergencyAmberDark    = Secondary
+val DarkBackground        = AppBackground
+val DarkSurface           = Surface
+val DarkSurfaceElevated   = SurfaceVariant
+val DarkBorder            = Outline
+val LightBackground       = AppBackground
+val LightSurface          = Surface
+val LightSurfaceVariant   = SurfaceVariant
+val LightBorder           = Outline
 val TextOnDark          = TextPrimary
 val TextOnDarkDim       = TextSecondary
 val TextOnDarkMuted     = TextMuted

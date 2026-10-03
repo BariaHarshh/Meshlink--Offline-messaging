@@ -2,10 +2,14 @@ package com.meshlink.app.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import com.meshlink.app.domain.repository.UserProfileManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -87,9 +91,28 @@ class UserProfileManagerImpl @Inject constructor(
         getEncryptedProfilePrefs(context)
     }
 
+    private val _displayNameFlow: MutableStateFlow<String> by lazy {
+        MutableStateFlow(getDisplayName())
+    }
+
+    override val displayNameFlow: StateFlow<String>
+        get() = _displayNameFlow.asStateFlow()
+
     override fun getDisplayName(): String {
         val savedName = prefs.getString(KEY_FULL_NAME, null)
-        return if (!savedName.isNullOrBlank()) savedName else "MeshLink Node"
+        return if (!savedName.isNullOrBlank()) {
+            savedName
+        } else {
+            val model = Build.MODEL
+            if (!model.isNullOrBlank() && model != "unknown") model else "Harsh"
+        }
+    }
+
+    override fun setDisplayName(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isNotBlank()) {
+            prefs.edit().putString(KEY_FULL_NAME, trimmed).apply()
+            _displayNameFlow.value = trimmed
+        }
     }
 }
-

@@ -9,10 +9,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.meshlink.app.ui.broadcast.BroadcastScreen
 import com.meshlink.app.ui.chat.ChatScreen
-import com.meshlink.app.ui.discovery.DiscoveryScreen
+import com.meshlink.app.ui.chats.ChatsListScreen
 import com.meshlink.app.ui.home.HomeScreen
 import com.meshlink.app.ui.medical.MedicalProfileScreen
-import com.meshlink.app.ui.sos.SosScreen
+import com.meshlink.app.ui.mesh.MeshNetworkScreen
+import com.meshlink.app.ui.profile.ProfileScreen
 
 @Composable
 fun MeshLinkNavHost(
@@ -21,17 +22,23 @@ fun MeshLinkNavHost(
 ) {
     NavHost(
         navController    = navController,
-        startDestination = Screen.Home.route,
+        startDestination = Screen.HomeTab.route,
         modifier         = modifier
     ) {
-        // ── CHATS tab ─────────────────────────────────────────────────────────
-        composable(Screen.Home.route) {
+        // ── HOME tab ───────────────────────────────────────────────────────────
+        composable(Screen.HomeTab.route) {
             HomeScreen(
                 onConversationClick = { deviceId, deviceName ->
                     navController.navigate(Screen.Chat.createRoute(deviceId, deviceName))
                 },
-                onSettingsClick = {
-                    navController.navigate(Screen.MedicalProfile.route)
+                onSeeAllChats = {
+                    navController.navigate(Screen.Chats.route)
+                },
+                onSeeMesh = {
+                    navController.navigate(Screen.MeshNetwork.route)
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.ProfileTab.route)
                 },
                 onBroadcastClick = {
                     navController.navigate(Screen.Broadcast.route)
@@ -39,42 +46,51 @@ fun MeshLinkNavHost(
             )
         }
 
-        // ── DISCOVER tab ──────────────────────────────────────────────────────
-        composable(Screen.Discovery.route) {
-            DiscoveryScreen(
+        // ── CHATS tab ──────────────────────────────────────────────────────────
+        composable(Screen.Chats.route) {
+            ChatsListScreen(
+                onConversationClick = { deviceId, deviceName ->
+                    navController.navigate(Screen.Chat.createRoute(deviceId, deviceName))
+                },
+                onDiscoverPeers = {
+                    navController.navigate(Screen.MeshNetwork.route)
+                }
+            )
+        }
+
+        // ── MESH NETWORK tab ───────────────────────────────────────────────────
+        composable(Screen.MeshNetwork.route) {
+            MeshNetworkScreen(
                 onDeviceClick = { endpointId, deviceName ->
                     navController.navigate(Screen.Chat.createRoute(endpointId, deviceName))
-                },
-                onSettingsClick = {
+                }
+            )
+        }
+
+        // ── PROFILE tab ────────────────────────────────────────────────────────
+        composable(Screen.ProfileTab.route) {
+            ProfileScreen(
+                onNavigateToSecurity = {
                     navController.navigate(Screen.MedicalProfile.route)
                 }
             )
         }
 
-        // ── SOS tab ───────────────────────────────────────────────────────────
-        composable(Screen.Sos.route) {
-            SosScreen(
-                onMedicalProfileClick = {
-                    navController.navigate(Screen.MedicalProfile.route)
-                }
-            )
-        }
-
-        // ── Medical Profile (full-screen, no bottom bar) ──────────────────────
+        // ── Medical / Security Profile (full-screen, no bottom bar) ───────────
         composable(Screen.MedicalProfile.route) {
             MedicalProfileScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
 
-        // ── Broadcast (full-screen, no bottom bar) ────────────────────────────
+        // ── Broadcast (full-screen, no bottom bar) ─────────────────────────────
         composable(Screen.Broadcast.route) {
             BroadcastScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
 
-        // ── Chat (full-screen, no bottom bar) ─────────────────────────────────
+        // ── Chat (full-screen, no bottom bar) ──────────────────────────────────
         composable(
             route     = Screen.Chat.route,
             arguments = listOf(

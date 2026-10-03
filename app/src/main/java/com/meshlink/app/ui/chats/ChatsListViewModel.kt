@@ -1,20 +1,18 @@
-package com.meshlink.app.ui.home
+package com.meshlink.app.ui.chats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.meshlink.app.domain.model.ConnectionState
 import com.meshlink.app.domain.model.DeliveryStatus
 import com.meshlink.app.domain.repository.DeviceRepository
 import com.meshlink.app.domain.repository.MessageRepository
 import com.meshlink.app.domain.repository.NearbyRepository
-import com.meshlink.app.domain.repository.UserProfileManager
+import com.meshlink.app.ui.home.Conversation
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -22,25 +20,16 @@ import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Named
 
-data class Conversation(
-    val deviceId:       String,
-    val deviceName:     String,
-    val lastMessage:    String,
-    val timestamp:      Long,
-    val formattedTime:  String,
-    val deliveryStatus: DeliveryStatus = DeliveryStatus.DELIVERED
-)
-
 @HiltViewModel
-class HomeViewModel @Inject constructor(
-    private val messageRepository:   MessageRepository,
-    private val deviceRepository:    DeviceRepository,
-    private val nearbyRepository:    NearbyRepository,
-    private val userProfileManager:  UserProfileManager,
+class ChatsListViewModel @Inject constructor(
+    private val messageRepository: MessageRepository,
+    private val deviceRepository:  DeviceRepository,
+    private val nearbyRepository:  NearbyRepository,
     @Named("localDeviceId") private val localDeviceId: String
 ) : ViewModel() {
 
-    val userName: StateFlow<String> = userProfileManager.displayNameFlow
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
 
     val conversations: StateFlow<List<Conversation>> = messageRepository
         .getLatestMessagePerConversation()
@@ -48,8 +37,6 @@ class HomeViewModel @Inject constructor(
             val deviceNameMap = devices.associate { it.deviceId to it.displayName }
             messages.map { msg ->
                 val peerId   = if (msg.senderId == localDeviceId) msg.receiverId else msg.senderId
-                // Prefer senderName from the message (set by the remote peer),
-                // then fall back to KnownDevice displayName, then truncated deviceId
                 val peerName = msg.senderName.takeIf { it.isNotEmpty() && msg.senderId != localDeviceId }
                     ?: deviceNameMap[peerId]
                     ?: peerId.take(8)
@@ -65,19 +52,19 @@ class HomeViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Number of currently CONNECTED (post-handshake) peers. */
-    val peerCount: StateFlow<Int> = nearbyRepository.connectionStates
-        .map { states -> states.count { it.value == ConnectionState.CONNECTED } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
-
-    /** Map of connection states by endpointId. */
-    val connectionStates: StateFlow<Map<String, ConnectionState>> = nearbyRepository.connectionStates
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
-
-    fun renameDevice(deviceId: String, newName: String) {
-        viewModelScope.launch {
-            deviceRepository.updateDisplayName(deviceId, newName.trim())
+    val filteredConversations: StateFlow<List<Conversation>> = combine(conversations, searchQuery) { list, query ->
+        if (query.isBlank()) {
+            list
+        } else {
+            list.filter {
+                it.deviceName.contains(query, ignoreCase = true) ||
+                it.lastMessage.contains(query, ignoreCase = true)
+            }
         }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun onSearchQueryChanged(newQuery: String) {
+        _searchQuery.value = newQuery
     }
 
     private fun formatConversationTime(epochMillis: Long): String {

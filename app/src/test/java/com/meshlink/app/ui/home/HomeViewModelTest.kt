@@ -7,6 +7,7 @@ import com.meshlink.app.domain.model.Message
 import com.meshlink.app.domain.repository.DeviceRepository
 import com.meshlink.app.domain.repository.MessageRepository
 import com.meshlink.app.domain.repository.NearbyRepository
+import com.meshlink.app.domain.repository.UserProfileManager
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -32,16 +33,23 @@ class HomeViewModelTest {
     private lateinit var messageRepo: MessageRepository
     private lateinit var deviceRepo: DeviceRepository
     private lateinit var nearbyRepo: NearbyRepository
+    private lateinit var userProfileManager: UserProfileManager
     private lateinit var viewModel: HomeViewModel
 
     private val localDeviceId = "local-device-id"
+    private val nameFlow = MutableStateFlow("Harsh")
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        messageRepo = mockk(relaxed = true)
-        deviceRepo  = mockk(relaxed = true)
-        nearbyRepo  = mockk(relaxed = true)
+        messageRepo        = mockk(relaxed = true)
+        deviceRepo         = mockk(relaxed = true)
+        nearbyRepo         = mockk(relaxed = true)
+        userProfileManager = mockk(relaxed = true)
+
+        nameFlow.value = "Harsh"
+        every { userProfileManager.getDisplayName() } returns "Harsh"
+        every { userProfileManager.displayNameFlow } returns nameFlow
 
         // Default: no connections
         every { nearbyRepo.connectionStates } returns MutableStateFlow(emptyMap())
@@ -53,11 +61,26 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `userName updates reactively when displayNameFlow changes`() = runTest {
+        every { messageRepo.getLatestMessagePerConversation() } returns flowOf(emptyList())
+        every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
+
+        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, userProfileManager, localDeviceId)
+
+        viewModel.userName.test {
+            assertEquals("Harsh", awaitItem())
+            nameFlow.value = "Alexander"
+            assertEquals("Alexander", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `conversations is empty when no messages`() = runTest {
         every { messageRepo.getLatestMessagePerConversation() } returns flowOf(emptyList())
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
-        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
+        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, userProfileManager, localDeviceId)
 
         viewModel.conversations.test {
             assertTrue(awaitItem().isEmpty())
@@ -85,7 +108,7 @@ class HomeViewModelTest {
         every { messageRepo.getLatestMessagePerConversation() } returns flowOf(listOf(msg))
         every { deviceRepo.getAllDevices() }                    returns flowOf(listOf(device))
 
-        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
+        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, userProfileManager, localDeviceId)
 
         viewModel.conversations.test {
             assertEquals(emptyList<Conversation>(), awaitItem())
@@ -111,13 +134,13 @@ class HomeViewModelTest {
         every { messageRepo.getLatestMessagePerConversation() } returns flowOf(listOf(msg))
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
-        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
+        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, userProfileManager, localDeviceId)
 
         viewModel.conversations.test {
             assertEquals(emptyList<Conversation>(), awaitItem())
             val conversations = awaitItem()
             assertEquals(1, conversations.size)
-            assertEquals("unknown-", conversations[0].deviceName)  // take(8)
+            assertEquals("unknown-", conversations[0].deviceName) // take(8)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -130,7 +153,7 @@ class HomeViewModelTest {
         every { messageRepo.getLatestMessagePerConversation() } returns flowOf(listOf(older, newer))
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
-        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
+        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, userProfileManager, localDeviceId)
 
         viewModel.conversations.test {
             assertEquals(emptyList<Conversation>(), awaitItem())
@@ -146,7 +169,7 @@ class HomeViewModelTest {
         every { messageRepo.getLatestMessagePerConversation() } returns flowOf(emptyList())
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
-        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
+        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, userProfileManager, localDeviceId)
 
         viewModel.renameDevice("peer-id", "  Bob  ")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -167,7 +190,7 @@ class HomeViewModelTest {
         every { messageRepo.getLatestMessagePerConversation() } returns flowOf(emptyList())
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
 
-        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, localDeviceId)
+        viewModel = HomeViewModel(messageRepo, deviceRepo, nearbyRepo, userProfileManager, localDeviceId)
 
         viewModel.peerCount.test {
             assertEquals(0, awaitItem()) // initial state
