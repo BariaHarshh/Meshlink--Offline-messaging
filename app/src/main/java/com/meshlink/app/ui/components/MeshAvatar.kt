@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Circular avatar showing the first 1–2 initials of [name] on a deterministic
- * color background tuned for MeshLink's dark theme.
+ * color background tuned for MeshLink's pastel theme.
  *
  * Used across Home, Discovery, and Chat screens.
  */
@@ -62,17 +62,17 @@ private fun extractInitials(name: String): String {
     }
 }
 
-// Dark-theme friendly avatar palette — vibrant but not harsh on #080D1A background
+// Pastel avatar palette
 private val avatarPalette = listOf(
-    Color(0xFF00897B), // Teal
-    Color(0xFF1976D2), // Blue
-    Color(0xFF7B1FA2), // Purple
-    Color(0xFFAD1457), // Pink
-    Color(0xFF2E7D32), // Green
-    Color(0xFF00838F), // Cyan
-    Color(0xFFE65100), // Deep Orange
-    Color(0xFF4527A0), // Deep Purple
-    Color(0xFF558B2F)  // Light Green
+    Color(0xFFC4717A), // dusty rose
+    Color(0xFFA87BAF), // soft lavender
+    Color(0xFF6A9E72), // soft green
+    Color(0xFF7B8FC4), // soft blue
+    Color(0xFFB87A5E), // warm terracotta
+    Color(0xFF9B7AB8), // medium purple
+    Color(0xFF5E9E8F), // teal
+    Color(0xFFC48A5E), // warm amber
+    Color(0xFF8E7AB0)  // dusty purple
 )
 
 private fun avatarColor(name: String): Color {
