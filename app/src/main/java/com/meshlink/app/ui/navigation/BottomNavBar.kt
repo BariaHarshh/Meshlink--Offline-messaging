@@ -49,12 +49,6 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem(
-        route          = Screen.HomeTab.route,
-        label          = "Home",
-        selectedIcon   = Icons.Filled.Home,
-        unselectedIcon = Icons.Outlined.Home
-    ),
-    BottomNavItem(
         route          = Screen.Chats.route,
         label          = "Chats",
         selectedIcon   = Icons.Filled.Forum,
