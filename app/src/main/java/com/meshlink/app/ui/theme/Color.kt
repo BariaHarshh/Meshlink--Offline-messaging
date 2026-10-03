@@ -3,101 +3,110 @@ package com.meshlink.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  MeshLink Design System
+//  MeshLink Reference-Accurate Design System Palette
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ── Core Palette ─────────────────────────────────────────────────────────────
-val Background          = Color(0xFFFBF2FB)   // soft warm lavender/pink-white
-val Surface             = Color(0xFFFFFFFF)   // warm white
-val SurfaceVariant      = Color(0xFFF5EEF5)   // slightly tinted off-white for cards
-val Primary             = Color(0xFFC4717A)   // dusty rose / muted crimson
-val PrimaryContainer    = Color(0xFFFADADD)   // light rose container
-val Secondary           = Color(0xFFA87BAF)   // soft lavender/purple
-val SecondaryContainer  = Color(0xFFEDE0F0)   // soft lavender container
-val Tertiary            = Color(0xFF6A9E72)   // soft green — success/connected
-val TertiaryContainer   = Color(0xFFD6EDD9)   // soft green container
+// ── Core Palette (Exact reference values) ────────────────────────────────────
+val PrimaryBackground   = Color(0xFFEBE1EB)   // Main canvas background
+val PrimaryAccent       = Color(0xFFC4717A)   // Dusty rose / primary accent
+val SecondaryAccent     = Color(0xFFE6ACDC)   // Soft pink accent
+val SoftLavender        = Color(0xFFDCC7EA)   // Soft lavender
+val WarmWhite           = Color(0xFFFFF8FA)   // Warm white card/bubble surface
+val CardSurfaceWhite    = Color(0xFFFFFFFF)   // Pure white for highest contrast cards
 
-// ── Text Colors ──────────────────────────────────────────────────────────────
-val TextPrimary         = Color(0xFF1A0F1E)   // near-black with warm tone
-val TextSecondary       = Color(0xFF6B5D6E)   // muted mauve/gray
-val TextMuted           = Color(0xFFB8A9BB)   // very muted
-val TextOnPrimary       = Color(0xFFFFFFFF)   // White text on colored buttons
+// ── Text Palette ─────────────────────────────────────────────────────────────
+val PrimaryText         = Color(0xFF070403)   // Deep black text
+val SecondaryText       = Color(0xFF6F6570)   // Medium mauve text
+val MutedText           = Color(0xFFAFA5B3)   // Muted gray-lavender text
+val TextOnPrimary       = Color(0xFFFFFFFF)   // White on primary accent
 
-// ── Borders & Dividers ───────────────────────────────────────────────────────
-val Outline             = Color(0xFFE8DCE8)   // soft lavender dividers
-val OutlineVariant      = Color(0xFFF0E8F0)   // subtle dividers
+// ── Status Palette ───────────────────────────────────────────────────────────
+val SoftGreen           = Color(0xFF43A047)   // Success / connected
+val SoftGreenContainer  = Color(0xFFE8F5E9)   // Green badge container
+val SoftAmber           = Color(0xFFE5A038)   // Warning / handshaking
+val SoftAmberContainer  = Color(0xFFFFF8E1)   // Amber badge container
+val SoftRed             = Color(0xFFD3455B)   // Error / disconnected
+val SoftRedContainer    = Color(0xFFFFEBEE)   // Error badge container
 
-// ── Status Colors ────────────────────────────────────────────────────────────
-val Error               = Color(0xFFB85C5C)   // muted red
-val ErrorContainer      = Color(0xFFFADADD)   // error container
+// ── Semantic Aliases & Backward Compatibility ────────────────────────────────
+val Background          = PrimaryBackground
+val Surface             = WarmWhite
+val SurfaceVariant      = Color(0xFFF7EFF7)
+val Primary             = PrimaryAccent
+val PrimaryContainer    = Color(0xFFF7DDE2)
+val Secondary           = SecondaryAccent
+val SecondaryContainer  = Color(0xFFF4E1F2)
+val Tertiary            = SoftGreen
+val TertiaryContainer   = SoftGreenContainer
+val Outline             = Color(0xFFE2D6E3)
+val OutlineVariant      = Color(0xFFECE1EC)
+val Error               = SoftRed
+val ErrorContainer      = SoftRedContainer
 
-// ── Backgrounds & Surfaces ───────────────────────────────────────────────────
-val AppBackground       = Background
-val CardSurface         = SurfaceVariant
+val TextPrimary         = PrimaryText
+val TextSecondary       = SecondaryText
+val TextMuted           = MutedText
 
-// ── Distance Badges ──────────────────────────────────────────────────────────
-val BadgeNear           = Tertiary
-val BadgeFar            = Secondary
-val BadgeVeryFar        = TextMuted
+val AppBackground       = PrimaryBackground
+val CardSurface         = WarmWhite
 
-// ── Legacy Aliases (backward compat) ─────────────────────────────────────────
-val StatusConnected     = Tertiary
-val StatusConnecting    = Secondary
-val StatusOffline       = Color(0xFFBDBDBD)
-val StatusError         = Error
-val PrimaryDark         = Color(0xFFA0555E)
+val StatusConnected     = SoftGreen
+val StatusConnecting    = SoftAmber
+val StatusOffline       = MutedText
+val StatusError         = SoftRed
+
+val BubbleSent          = PrimaryAccent
+val BubbleReceived      = WarmWhite
+
+// Legacy aliases
+val PrimaryDark         = Color(0xFFA2535C)
 val PrimaryLight        = PrimaryContainer
-val EmergencyRed          = Primary
-val EmergencyRedDark      = PrimaryDark
-val EmergencyRedSurface   = Primary
-val EmergencyRedContainer = PrimaryContainer
-val EmergencyRedLight     = PrimaryLight
-val EmergencyGreen        = Tertiary
-val EmergencyGreenDark    = Tertiary
-val EmergencyGreenLight   = TertiaryContainer
-val EmergencyAmber        = Secondary
-val EmergencyAmberLight   = SecondaryContainer
-val EmergencyAmberDark    = Secondary
-val DarkBackground        = AppBackground
-val DarkSurface           = Surface
-val DarkSurfaceElevated   = SurfaceVariant
-val DarkBorder            = Outline
-val LightBackground       = AppBackground
-val LightSurface          = Surface
-val LightSurfaceVariant   = SurfaceVariant
-val LightBorder           = Outline
-val TextOnDark          = TextPrimary
-val TextOnDarkDim       = TextSecondary
-val TextOnDarkMuted     = TextMuted
-val BadgeOffline        = StatusOffline
-val MeshPrimary         = Primary
-val MeshBackground      = AppBackground
-val MeshSurface         = Surface
+val MeshPrimary         = PrimaryAccent
+val MeshBackground      = PrimaryBackground
+val MeshSurface         = WarmWhite
 val MeshSurfaceVariant  = SurfaceVariant
-val MeshSurfaceBright   = Surface
+val MeshSurfaceBright   = CardSurfaceWhite
 val MeshPrimaryDim      = PrimaryDark
 val MeshPrimaryContainer= PrimaryContainer
 val MeshOnPrimary       = TextOnPrimary
-val MeshSecondary       = Secondary
+val MeshSecondary       = SecondaryAccent
 val MeshSecondaryContainer= SecondaryContainer
-val MeshConnected       = StatusConnected
-val MeshConnecting      = StatusConnecting
-val MeshHandshaking     = Secondary
-val MeshDisconnected    = StatusError
-val MeshOnBackground    = TextPrimary
-val MeshOnBackgroundDim = TextSecondary
-val MeshOnBackgroundMuted = TextMuted
+val MeshConnected       = SoftGreen
+val MeshConnecting      = SoftAmber
+val MeshHandshaking     = SoftAmber
+val MeshDisconnected    = SoftRed
+val MeshOnBackground    = PrimaryText
+val MeshOnBackgroundDim = SecondaryText
+val MeshOnBackgroundMuted = MutedText
 val MeshOutline         = Outline
-val NavBarBackground    = AppBackground
-val NavItemActive       = Primary
-val NavItemInactive     = TextMuted
+val NavBarBackground    = PrimaryBackground
+val NavItemActive       = PrimaryAccent
+val NavItemInactive     = MutedText
 val NavIndicator        = PrimaryContainer
-val BloodGroupSelected  = Primary
-val BloodGroupUnselected= SurfaceVariant
-val MeshReadyGreen      = Tertiary
-val ContactAvatarSalmon = Primary
-val RadarRing1          = Color(0x33C4717A)
-val RadarRing2          = Color(0x55C4717A)
-val RadarRing3          = Color(0x88C4717A)
-val BubbleSent          = Primary
-val BubbleReceived      = SurfaceVariant
+val MeshReadyGreen      = SoftGreen
+val RadarRing1          = Color(0x22C4717A)
+val RadarRing2          = Color(0x33C4717A)
+val RadarRing3          = Color(0x44C4717A)
+
+// Legacy screen compatibility aliases
+val EmergencyGreen        = SoftGreen
+val EmergencyRed          = SoftRed
+val EmergencyRedContainer = SoftRedContainer
+val EmergencyRedSurface   = SoftRedContainer
+val LightBackground       = PrimaryBackground
+val LightBorder           = Outline
+val LightSurface          = WarmWhite
+val LightSurfaceVariant   = SurfaceVariant
+val DarkBackground        = Color(0xFF1E1A20)
+val DarkSurface           = Color(0xFF2A242D)
+val DarkSurfaceElevated   = Color(0xFF38303C)
+val TextOnDark            = Color(0xFFFFF8FA)
+val TextOnDarkDim         = Color(0xFFDCC7EA)
+val TextOnDarkMuted       = Color(0xFFAFA5B3)
+val BadgeNear             = SoftGreen
+val BadgeFar              = SoftAmber
+val BadgeVeryFar          = SoftRed
+val BloodGroupSelected    = PrimaryAccent
+val BloodGroupUnselected  = WarmWhite
+val ContactAvatarSalmon   = SecondaryAccent
+

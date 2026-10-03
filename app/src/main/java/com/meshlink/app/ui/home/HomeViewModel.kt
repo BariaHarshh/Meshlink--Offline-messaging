@@ -70,6 +70,16 @@ class HomeViewModel @Inject constructor(
         .map { states -> states.count { it.value == ConnectionState.CONNECTED } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
+    /** Number of all currently discovered nearby peers in radio range. */
+    val nearbyDevicesCount: StateFlow<Int> = nearbyRepository.discoveredDevices
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** Number of active routes through direct or multi-hop peers. */
+    val activeRoutesCount: StateFlow<Int> = nearbyRepository.connectionStates
+        .map { states -> states.count { it.value == ConnectionState.CONNECTED } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     /** Map of connection states by endpointId. */
     val connectionStates: StateFlow<Map<String, ConnectionState>> = nearbyRepository.connectionStates
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())

@@ -45,6 +45,7 @@ fun MeshLinkTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = MeshLinkColorScheme,
         typography  = MeshTypography,
+        shapes      = MeshLinkShapes,
         content     = content
     )
 }
@@ -55,6 +56,7 @@ fun MeshLinkLightTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = MeshLinkColorScheme,
         typography  = MeshTypography,
+        shapes      = MeshLinkShapes,
         content     = content
     )
 }

@@ -642,6 +642,10 @@ class NearbyRepositoryImpl @Inject constructor(
 
     private fun startAdvertisingInternal() {
         if (isAdvertising) return
+        try {
+            connectionsClient.stopAdvertising()
+        } catch (_: Exception) {}
+
         // Phase 3A: Advertise only a generic, non-identifying protocol token.
         // The user's real display name MUST NOT appear in the unauthenticated
         // Nearby beacon; it is only exchanged after ECDH handshake completes.
@@ -653,13 +657,17 @@ class NearbyRepositoryImpl @Inject constructor(
             Timber.d("Advertising started")
             isAdvertising = true
         }.addOnFailureListener { e ->
-            Timber.e(e, "startAdvertising failed")
+            Timber.w(e, "startAdvertising unavailable or failed: ${e.message}")
             isAdvertising = false
         }
     }
 
     private fun startDiscoveryInternal() {
         if (isDiscovering) return
+        try {
+            connectionsClient.stopDiscovery()
+        } catch (_: Exception) {}
+
         connectionsClient.startDiscovery(
             SERVICE_ID, endpointDiscoveryCallback,
             DiscoveryOptions.Builder().setStrategy(STRATEGY).build()
@@ -667,7 +675,7 @@ class NearbyRepositoryImpl @Inject constructor(
             Timber.d("Discovery started")
             isDiscovering = true
         }.addOnFailureListener { e ->
-            Timber.e(e, "startDiscovery failed")
+            Timber.w(e, "startDiscovery unavailable or failed: ${e.message}")
             isDiscovering = false
         }
     }

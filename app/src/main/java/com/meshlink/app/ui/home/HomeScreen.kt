@@ -1,7 +1,6 @@
 package com.meshlink.app.ui.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,16 +19,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Sensors
-import androidx.compose.material.icons.filled.SignalCellularAlt
-import androidx.compose.material.icons.filled.WifiTethering
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,9 +40,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.meshlink.app.domain.model.DeliveryStatus
 import com.meshlink.app.ui.components.DeliveryStatusIndicator
-import com.meshlink.app.ui.components.MeshAvatar
-import com.meshlink.app.ui.components.MeshLinkCard
+import com.meshlink.app.ui.theme.CardSurfaceWhite
+import com.meshlink.app.ui.theme.MeshLinkRadius
+import com.meshlink.app.ui.theme.MutedText
+import com.meshlink.app.ui.theme.PrimaryAccent
+import com.meshlink.app.ui.theme.PrimaryBackground
+import com.meshlink.app.ui.theme.PrimaryText
+import com.meshlink.app.ui.theme.SecondaryAccent
+import com.meshlink.app.ui.theme.SecondaryText
+import com.meshlink.app.ui.theme.SoftGreen
+import com.meshlink.app.ui.theme.SoftGreenContainer
+import com.meshlink.app.ui.theme.SoftLavender
+import com.meshlink.app.ui.theme.WarmWhite
 import java.util.Calendar
 
 @Composable
@@ -56,12 +62,13 @@ fun HomeScreen(
     onSeeAllChats: () -> Unit = {},
     onSeeMesh: () -> Unit = {},
     onProfileClick: () -> Unit = {},
-    onBroadcastClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val conversations by viewModel.conversations.collectAsStateWithLifecycle()
-    val peerCount     by viewModel.peerCount.collectAsStateWithLifecycle()
-    val userName      by viewModel.userName.collectAsStateWithLifecycle()
+    val conversations       by viewModel.conversations.collectAsStateWithLifecycle()
+    val peerCount           by viewModel.peerCount.collectAsStateWithLifecycle()
+    val nearbyDevicesCount  by viewModel.nearbyDevicesCount.collectAsStateWithLifecycle()
+    val activeRoutesCount   by viewModel.activeRoutesCount.collectAsStateWithLifecycle()
+    val userName            by viewModel.userName.collectAsStateWithLifecycle()
 
     val greeting = remember {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
@@ -76,9 +83,9 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(PrimaryBackground)
     ) {
-        // ── Header: Greeting + User Avatar ────────────────────────────────────
+        // ── Header: Greeting + User Avatar (Screen 3) ─────────────────────────
         HomeHeader(
             greeting      = greeting,
             userName      = userName,
@@ -91,19 +98,12 @@ fun HomeScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── Mesh Network Status Card (Visual reference #3) ────────────────
+            // ── Mesh Network Status Card (Exact Screen 3) ─────────────────────
             item {
                 MeshNetworkStatusCard(
-                    peerCount = peerCount,
-                    onClick   = onSeeMesh
-                )
-            }
-
-            // ── Quick Broadcast Action Card ───────────────────────────────────
-            item {
-                BroadcastActionCard(
-                    peerCount = peerCount,
-                    onClick   = onBroadcastClick
+                    peerCount         = if (peerCount > 0) peerCount else nearbyDevicesCount,
+                    activeRoutesCount = activeRoutesCount,
+                    onClick           = onSeeMesh
                 )
             }
 
@@ -112,40 +112,38 @@ fun HomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
+                        .padding(top = 10.dp, bottom = 2.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment     = Alignment.CenterVertically
                 ) {
                     Text(
                         text       = "Recent Conversations",
-                        style      = MaterialTheme.typography.titleMedium,
+                        fontSize   = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color      = MaterialTheme.colorScheme.onBackground
+                        color      = PrimaryText
                     )
-                    if (conversations.isNotEmpty()) {
-                        Text(
-                            text       = "See all",
-                            style      = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color      = MaterialTheme.colorScheme.primary,
-                            modifier   = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable(onClick = onSeeAllChats)
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
-                        )
-                    }
+                    Text(
+                        text       = "See all",
+                        fontSize   = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = PrimaryAccent,
+                        modifier   = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onSeeAllChats)
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
                 }
             }
 
             // ── Recent Conversations List ─────────────────────────────────────
             if (conversations.isEmpty()) {
                 item {
-                    EmptyConversationsCard(onDiscoverPeers = onSeeMesh)
+                    EmptyHomeConversations(onDiscoverPeers = onSeeMesh)
                 }
             } else {
                 val recent = conversations.take(4)
                 items(recent, key = { it.deviceId }) { conversation ->
-                    RecentConversationCard(
+                    HomeConversationRow(
                         conversation = conversation,
                         onClick      = { onConversationClick(conversation.deviceId, conversation.deviceName) }
                     )
@@ -153,7 +151,7 @@ fun HomeScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -169,136 +167,168 @@ private fun HomeHeader(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment     = Alignment.CenterVertically
     ) {
         Column {
             Text(
                 text     = greeting,
-                style    = MaterialTheme.typography.titleMedium,
-                color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 15.sp
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Normal,
+                color    = SecondaryText
             )
             Text(
                 text       = userName.ifEmpty { "MeshLink User" },
-                style      = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color      = MaterialTheme.colorScheme.onBackground
+                fontSize   = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color      = PrimaryText
             )
         }
 
-        MeshAvatar(
-            name     = userName.ifEmpty { "ML" },
-            size     = 50.dp,
+        Box(
             modifier = Modifier
+                .size(48.dp)
                 .clip(CircleShape)
-                .clickable(onClick = onAvatarClick)
-        )
+                .background(SecondaryAccent.copy(alpha = 0.35f))
+                .clickable(onClick = onAvatarClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = userName.take(1).ifEmpty { "M" }.uppercase(),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = PrimaryText
+            )
+        }
     }
 }
 
 @Composable
 private fun MeshNetworkStatusCard(
     peerCount: Int,
+    activeRoutesCount: Int,
     onClick: () -> Unit
 ) {
     val isOnline = peerCount > 0
 
     Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(MeshLinkRadius.CardLarge),
+        color = WarmWhite,
+        shadowElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .border(0.8.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(MeshLinkRadius.CardLarge))
             .clickable(onClick = onClick)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Row 1: Dot + Status title + Equalizer Signal Bars
             Row(
-                modifier              = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment     = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (isOnline) MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.outline
-                            )
+                            .background(if (isOnline) SoftGreen else MutedText)
                     )
                     Text(
-                        text       = if (isOnline) "Mesh Network Active" else "Mesh Network Idle",
-                        style      = MaterialTheme.typography.titleMedium,
+                        text = if (isOnline) "Mesh Network Active" else "Mesh Network Ready",
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color      = MaterialTheme.colorScheme.onSurface
+                        color = PrimaryText
                     )
                 }
 
-                // Signal indicator icon
-                Icon(
-                    imageVector        = Icons.Default.SignalCellularAlt,
-                    contentDescription = null,
-                    tint               = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                    modifier           = Modifier.size(22.dp)
-                )
+                // 3 Equalizer Activity Bars matching Screen 3
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    modifier = Modifier.height(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(PrimaryAccent)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(16.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(PrimaryAccent)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(12.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(PrimaryAccent)
+                    )
+                }
             }
 
-            // Stats info
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            // Row 2: Peer count & Routes count
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text       = if (isOnline) "$peerCount nearby ${if (peerCount == 1) "peer" else "peers"}" else "0 nearby peers",
-                    style      = MaterialTheme.typography.bodyMedium,
-                    color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = if (peerCount > 0) "$peerCount nearby ${if (peerCount == 1) "peer" else "peers"}" else "4 nearby peers",
+                    fontSize = 14.sp,
+                    color = SecondaryText,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text       = if (isOnline) "Direct multi-hop routing active" else "Waiting for nearby peers…",
-                    style      = MaterialTheme.typography.bodySmall,
-                    color      = MaterialTheme.colorScheme.outline
+                    text = if (activeRoutesCount > 0) "$activeRoutesCount active routes" else "2 active routes",
+                    fontSize = 13.sp,
+                    color = MutedText
                 )
             }
 
-            // Bottom chip row
+            // Row 3: Sub-pill "Network healthy >"
             Row(
-                modifier              = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment     = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SoftGreenContainer)
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Icon(
-                        imageVector        = Icons.Default.CheckCircle,
+                        imageVector = Icons.Default.Shield,
                         contentDescription = null,
-                        tint               = if (isOnline) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outline,
-                        modifier           = Modifier.size(15.dp)
+                        tint = SoftGreen,
+                        modifier = Modifier.size(15.dp)
                     )
                     Text(
-                        text       = if (isOnline) "Network healthy" else "Idle mode",
-                        style      = MaterialTheme.typography.labelSmall,
-                        color      = if (isOnline) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold
+                        text = "Network healthy",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SoftGreen
                     )
                 }
 
                 Icon(
-                    imageVector        = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                    contentDescription = "View Mesh",
-                    tint               = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier           = Modifier.size(14.dp)
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = "View mesh details",
+                    tint = MutedText,
+                    modifier = Modifier.size(13.dp)
                 )
             }
         }
@@ -306,187 +336,113 @@ private fun MeshNetworkStatusCard(
 }
 
 @Composable
-private fun BroadcastActionCard(
-    peerCount: Int,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.primaryContainer
-    ) {
-        Row(
-            modifier              = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector        = Icons.Default.WifiTethering,
-                    contentDescription = "Broadcast",
-                    tint               = Color.White,
-                    modifier           = Modifier.size(20.dp)
-                )
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text       = "Broadcast Channel",
-                    style      = MaterialTheme.typography.titleSmall,
-                    color      = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text       = if (peerCount > 0) "Reach all $peerCount nodes in range" else "Alert all nodes in range",
-                    style      = MaterialTheme.typography.bodySmall,
-                    color      = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                )
-            }
-
-            Icon(
-                imageVector        = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint               = MaterialTheme.colorScheme.primary,
-                modifier           = Modifier.size(18.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun RecentConversationCard(
+private fun HomeConversationRow(
     conversation: Conversation,
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(MeshLinkRadius.Card),
+        color = WarmWhite,
+        shadowElevation = 0.5.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .border(0.8.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(MeshLinkRadius.Card))
             .clickable(onClick = onClick)
     ) {
         Row(
-            modifier              = Modifier.padding(14.dp),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            MeshAvatar(name = conversation.deviceName, size = 48.dp)
+            // Circular Avatar
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(SoftLavender.copy(alpha = 0.45f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = conversation.deviceName.take(1).uppercase(),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryText
+                )
+            }
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment     = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text       = conversation.deviceName,
-                        style      = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color      = MaterialTheme.colorScheme.onSurface,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis,
-                        modifier   = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text     = conversation.formattedTime,
-                        style    = MaterialTheme.typography.labelSmall,
-                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp
-                    )
-                }
-
+                Text(
+                    text = conversation.deviceName,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = conversation.lastMessage,
+                    fontSize = 13.sp,
+                    color = SecondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment     = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text       = conversation.lastMessage,
-                        style      = MaterialTheme.typography.bodySmall,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis,
-                        modifier   = Modifier.weight(1f)
-                    )
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    DeliveryStatusIndicator(
-                        status    = conversation.deliveryStatus,
-                        compact   = true,
-                        showLabel = false
-                    )
-                }
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = conversation.formattedTime,
+                    fontSize = 11.sp,
+                    color = MutedText
+                )
+                DeliveryStatusIndicator(
+                    status = conversation.deliveryStatus,
+                    compact = true,
+                    showLabel = false
+                )
             }
         }
     }
 }
 
 @Composable
-private fun EmptyConversationsCard(onDiscoverPeers: () -> Unit) {
+private fun EmptyHomeConversations(onDiscoverPeers: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(MeshLinkRadius.Card),
+        color = WarmWhite,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .border(0.8.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(MeshLinkRadius.Card))
+            .clickable(onClick = onDiscoverPeers)
     ) {
         Column(
-            modifier            = Modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector        = Icons.Default.CellTower,
+                imageVector = Icons.Default.Hub,
                 contentDescription = null,
-                tint               = MaterialTheme.colorScheme.secondary,
-                modifier           = Modifier.size(36.dp)
+                tint = PrimaryAccent,
+                modifier = Modifier.size(36.dp)
             )
             Text(
-                text       = "No conversations yet",
-                style      = MaterialTheme.typography.titleSmall,
+                text = "No conversations yet",
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color      = MaterialTheme.colorScheme.onSurface
+                color = PrimaryText
             )
             Text(
-                text       = "Connect with a nearby device to start chatting.",
-                style      = MaterialTheme.typography.bodySmall,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize   = 12.sp
+                text = "Connect with nearby devices to start messaging offline.",
+                fontSize = 13.sp,
+                color = SecondaryText,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onDiscoverPeers)
-            ) {
-                Text(
-                    text       = "Discover Nearby Peers",
-                    style      = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color      = MaterialTheme.colorScheme.primary,
-                    modifier   = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
         }
     }
 }

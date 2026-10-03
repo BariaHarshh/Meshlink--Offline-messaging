@@ -14,6 +14,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -53,15 +54,37 @@ class MainActivity : ComponentActivity() {
                 add(Manifest.permission.BLUETOOTH_CONNECT)
             }
             add(Manifest.permission.ACCESS_FINE_LOCATION)
+            add(Manifest.permission.ACCESS_COARSE_LOCATION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.NEARBY_WIFI_DEVICES)
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }.toTypedArray()
 
+    private fun areEssentialPermissionsGranted(): Boolean {
+        val hasLocation = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        val hasBt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE) == PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+
+        val hasNearbyWifi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            checkSelfPermission(Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+
+        return (hasBt || hasNearbyWifi) && hasLocation
+    }
+
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
-            permissionsGranted = results.values.all { it }
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
+            permissionsGranted = areEssentialPermissionsGranted()
             if (permissionsGranted) NearbyService.start(this)
         }
 
@@ -69,9 +92,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        permissionsGranted = requiredPermissions.all { perm ->
-            checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED
-        }
+        permissionsGranted = areEssentialPermissionsGranted()
         if (permissionsGranted) NearbyService.start(this)
 
         setContent {
@@ -86,6 +107,7 @@ class MainActivity : ComponentActivity() {
                     val showBottomBar   = currentRoute in bottomNavRoutes
 
                     Scaffold(
+                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
                         containerColor = MaterialTheme.colorScheme.background,
                         bottomBar = {
                             AnimatedVisibility(
@@ -97,8 +119,7 @@ class MainActivity : ComponentActivity() {
                                     currentRoute = currentRoute,
                                     onNavigate   = { route ->
                                         navController.navigate(route) {
-                                            // Pop up to start destination to avoid huge back stack
-                                            popUpTo(navController.graph.startDestinationId) {
+                                            popUpTo(Screen.HomeTab.route) {
                                                 saveState = true
                                             }
                                             launchSingleTop = true

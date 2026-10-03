@@ -1,7 +1,6 @@
 package com.meshlink.app.ui.chats
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,12 +23,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,8 +44,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.meshlink.app.ui.components.DeliveryStatusIndicator
-import com.meshlink.app.ui.components.MeshAvatar
 import com.meshlink.app.ui.home.Conversation
+import com.meshlink.app.ui.theme.CardSurfaceWhite
+import com.meshlink.app.ui.theme.MeshLinkRadius
+import com.meshlink.app.ui.theme.MutedText
+import com.meshlink.app.ui.theme.PrimaryAccent
+import com.meshlink.app.ui.theme.PrimaryBackground
+import com.meshlink.app.ui.theme.PrimaryText
+import com.meshlink.app.ui.theme.SecondaryAccent
+import com.meshlink.app.ui.theme.SecondaryText
+import com.meshlink.app.ui.theme.SoftLavender
+import com.meshlink.app.ui.theme.WarmWhite
 
 @Composable
 fun ChatsListScreen(
@@ -62,302 +69,236 @@ fun ChatsListScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(PrimaryBackground)
         ) {
-            // ── Top Header ────────────────────────────────────────────────────
-            ChatsHeader()
-
-            // ── Search Field ──────────────────────────────────────────────────
-            ChatsSearchBar(
-                query         = searchQuery,
-                onQueryChange = viewModel::onSearchQueryChanged,
-                modifier      = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-            )
-
-            // ── Conversation List ─────────────────────────────────────────────
-            if (conversations.isEmpty()) {
-                EmptyChatsState(
-                    isSearching     = searchQuery.isNotBlank(),
-                    onDiscoverPeers = onDiscoverPeers
+            // ── Top Header matching Screen 4 ──────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                Text(
+                    text       = "Chats",
+                    fontSize   = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = PrimaryText
                 )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = {}) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = PrimaryText,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    IconButton(onClick = {}) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More options",
+                            tint = PrimaryText,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            // ── Search Field matching Screen 4 ────────────────────────────────
+            Surface(
+                shape = RoundedCornerShape(MeshLinkRadius.Button),
+                color = WarmWhite,
+                shadowElevation = 0.5.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MutedText,
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = viewModel::onSearchQueryChanged,
+                        singleLine = true,
+                        cursorBrush = SolidColor(PrimaryAccent),
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 15.sp,
+                            color = PrimaryText
+                        ),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search conversations...",
+                                    fontSize = 15.sp,
+                                    color = MutedText
+                                )
+                            }
+                            innerTextField()
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (searchQuery.isNotEmpty()) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = "Clear search",
+                            tint = SecondaryText,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable { viewModel.onSearchQueryChanged("") }
+                        )
+                    }
+                }
+            }
+
+            // ── Conversations List ────────────────────────────────────────────
+            if (conversations.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(SoftLavender.copy(alpha = 0.4f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Forum,
+                                contentDescription = null,
+                                tint = PrimaryAccent,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Text(
+                            text = if (searchQuery.isNotBlank()) "No matching conversations" else "No conversations yet",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryText
+                        )
+                        Text(
+                            text = if (searchQuery.isNotBlank()) "Try a different search term" else "Connect with nearby devices on the Mesh tab to start chatting.",
+                            fontSize = 14.sp,
+                            color = SecondaryText,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(conversations, key = { it.deviceId }) { conversation ->
-                        ConversationItemCard(
-                            conversation = conversation,
-                            onClick      = { onConversationClick(conversation.deviceId, conversation.deviceName) }
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(MeshLinkRadius.Card),
+                            color = WarmWhite,
+                            shadowElevation = 0.5.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(MeshLinkRadius.Card))
+                                .clickable { onConversationClick(conversation.deviceId, conversation.deviceName) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(SecondaryAccent.copy(alpha = 0.35f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = conversation.deviceName.take(1).uppercase(),
+                                        fontSize = 19.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PrimaryText
+                                    )
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = conversation.deviceName,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PrimaryText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = conversation.lastMessage,
+                                        fontSize = 13.sp,
+                                        color = SecondaryText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = conversation.formattedTime,
+                                        fontSize = 12.sp,
+                                        color = MutedText
+                                    )
+                                    DeliveryStatusIndicator(
+                                        status = conversation.deliveryStatus,
+                                        compact = true,
+                                        showLabel = false
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(80.dp))
+                        Spacer(modifier = Modifier.height(84.dp))
                     }
                 }
             }
         }
 
-        // ── Floating Action Button (New Chat / Discover Peers) ────────────────
+        // ── Floating Action Button (+) matching Screen 4 ──────────────────────
         FloatingActionButton(
-            onClick         = onDiscoverPeers,
-            containerColor  = MaterialTheme.colorScheme.primary,
-            contentColor    = Color.White,
-            shape           = CircleShape,
-            elevation       = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
-            modifier        = Modifier
+            onClick = onDiscoverPeers,
+            containerColor = PrimaryAccent,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 24.dp)
+                .padding(end = 24.dp, bottom = 28.dp)
                 .size(56.dp)
         ) {
             Icon(
-                imageVector        = Icons.Default.Add,
-                contentDescription = "New chat",
-                modifier           = Modifier.size(26.dp)
+                imageVector = Icons.Default.Add,
+                contentDescription = "New Conversation / Discover Peers",
+                modifier = Modifier.size(28.dp)
             )
-        }
-    }
-}
-
-@Composable
-private fun ChatsHeader() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment     = Alignment.CenterVertically
-    ) {
-        Text(
-            text       = "Chats",
-            style      = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color      = MaterialTheme.colorScheme.onBackground
-        )
-
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .border(0.8.dp, MaterialTheme.colorScheme.outline, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector        = Icons.Default.Forum,
-                contentDescription = null,
-                tint               = MaterialTheme.colorScheme.primary,
-                modifier           = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ChatsSearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .border(0.8.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
-    ) {
-        Row(
-            modifier              = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector        = Icons.Default.Search,
-                contentDescription = "Search",
-                tint               = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier           = Modifier.size(18.dp)
-            )
-
-            Box(modifier = Modifier.weight(1f)) {
-                if (query.isEmpty()) {
-                    Text(
-                        text     = "Search conversations…",
-                        style    = MaterialTheme.typography.bodyMedium,
-                        color    = MaterialTheme.colorScheme.outline,
-                        fontSize = 14.sp
-                    )
-                }
-
-                BasicTextField(
-                    value         = query,
-                    onValueChange = onQueryChange,
-                    textStyle     = MaterialTheme.typography.bodyMedium.copy(
-                        color    = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp
-                    ),
-                    cursorBrush   = SolidColor(MaterialTheme.colorScheme.primary),
-                    singleLine    = true,
-                    modifier      = Modifier.fillMaxWidth()
-                )
-            }
-
-            if (query.isNotEmpty()) {
-                IconButton(
-                    onClick  = { onQueryChange("") },
-                    modifier = Modifier.size(18.dp)
-                ) {
-                    Icon(
-                        imageVector        = Icons.Default.Clear,
-                        contentDescription = "Clear search",
-                        tint               = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier           = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConversationItemCard(
-    conversation: Conversation,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .border(0.8.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier              = Modifier.padding(14.dp),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            MeshAvatar(name = conversation.deviceName, size = 50.dp)
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment     = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text       = conversation.deviceName,
-                        style      = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color      = MaterialTheme.colorScheme.onSurface,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis,
-                        modifier   = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text     = conversation.formattedTime,
-                        style    = MaterialTheme.typography.labelSmall,
-                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment     = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text       = conversation.lastMessage,
-                        style      = MaterialTheme.typography.bodyMedium,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis,
-                        fontSize   = 13.sp,
-                        modifier   = Modifier.weight(1f)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    DeliveryStatusIndicator(
-                        status    = conversation.deliveryStatus,
-                        compact   = true,
-                        showLabel = false
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyChatsState(
-    isSearching: Boolean,
-    onDiscoverPeers: () -> Unit
-) {
-    Box(
-        modifier         = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier            = Modifier.padding(32.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector        = Icons.Default.Forum,
-                    contentDescription = null,
-                    tint               = MaterialTheme.colorScheme.primary,
-                    modifier           = Modifier.size(32.dp)
-                )
-            }
-
-            Text(
-                text       = if (isSearching) "No matching conversations" else "No conversations yet",
-                style      = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color      = MaterialTheme.colorScheme.onSurface
-            )
-
-            Text(
-                text       = if (isSearching) "Try searching for a different name or message." else "Connect with a nearby MeshLink device to start chatting.",
-                style      = MaterialTheme.typography.bodyMedium,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize   = 13.sp
-            )
-
-            if (!isSearching) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable(onClick = onDiscoverPeers)
-                ) {
-                    Text(
-                        text       = "Discover Nearby Peers",
-                        style      = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color      = MaterialTheme.colorScheme.primary,
-                        modifier   = Modifier.padding(horizontal = 16.dp, vertical = 9.dp)
-                    )
-                }
-            }
         }
     }
 }

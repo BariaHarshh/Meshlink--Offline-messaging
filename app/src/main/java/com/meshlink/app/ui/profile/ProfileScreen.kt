@@ -82,6 +82,7 @@ import kotlinx.coroutines.launch
 fun ProfileScreen(
     onNavigateToSecurity: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToOnboarding: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val userName     by viewModel.userName.collectAsStateWithLifecycle()
@@ -181,7 +182,16 @@ fun ProfileScreen(
                         icon    = Icons.Default.Settings,
                         title   = "App Settings",
                         summary = "Radio frequencies, scanning & theme",
-                        onClick = { showSettingsDialog = true }
+                        onClick = onNavigateToSettings
+                    )
+                }
+
+                item {
+                    ProfileMenuItem(
+                        icon    = Icons.Default.Shield,
+                        title   = "MeshLink Guide",
+                        summary = "Review the mesh networking introduction",
+                        onClick = onNavigateToOnboarding
                     )
                 }
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
+    android:width="120dp"
+    android:height="120dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
@@ -14,7 +14,7 @@
         android:strokeLineJoin="round"
         android:fillColor="#00000000" />
 
-    <!-- Top Node (Dark Charcoal ring with white center) -->
+    <!-- Top Node (Dark Charcoal ring with light center) -->
     <path
         android:pathData="M54,36m-9,0a9,9 0 1,0 18,0a9,9 0 1,0 -18,0"
         android:fillColor="#070403" />
@@ -22,7 +22,7 @@
         android:pathData="M54,36m-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0"
         android:fillColor="#FFF8FA" />
 
-    <!-- Bottom-Left Node (Dark Charcoal ring with white center) -->
+    <!-- Bottom-Left Node (Dark Charcoal ring with light center) -->
     <path
         android:pathData="M36,68m-9,0a9,9 0 1,0 18,0a9,9 0 1,0 -18,0"
         android:fillColor="#070403" />
@@ -30,7 +30,7 @@
         android:pathData="M36,68m-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0"
         android:fillColor="#FFF8FA" />
 
-    <!-- Bottom-Right Node (Dusty Rose Accent ring with white center) -->
+    <!-- Bottom-Right Node (Dusty Rose Accent ring with light center) -->
     <path
         android:pathData="M72,68m-9,0a9,9 0 1,0 18,0a9,9 0 1,0 -18,0"
         android:fillColor="#C4717A" />
