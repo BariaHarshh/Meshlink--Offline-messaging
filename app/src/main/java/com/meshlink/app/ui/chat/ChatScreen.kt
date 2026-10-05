@@ -60,6 +60,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -341,6 +343,7 @@ fun ChatScreen(
                         value = inputText,
                         onValueChange = viewModel::onInputChanged,
                         singleLine = true,
+                        enabled = isConnected,
                         cursorBrush = SolidColor(PrimaryAccent),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(
@@ -357,14 +360,16 @@ fun ChatScreen(
                         decorationBox = { innerTextField ->
                             if (inputText.isEmpty()) {
                                 Text(
-                                    text = "Type a message...",
+                                    text = if (isConnected) "Type a message..." else "Connecting to mesh...",
                                     fontSize = 15.sp,
                                     color = MutedText
                                 )
                             }
                             innerTextField()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics { contentDescription = "Message input" }
                     )
                 }
             }

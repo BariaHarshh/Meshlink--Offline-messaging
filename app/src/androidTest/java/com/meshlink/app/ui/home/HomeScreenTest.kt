@@ -53,30 +53,37 @@ class HomeScreenTest {
     @JvmField
     val nearbyRepo: NearbyRepository = mockk(relaxed = true)
 
+    @BindValue
+    @JvmField
+    val userProfileManager: com.meshlink.app.domain.repository.UserProfileManager = mockk(relaxed = true)
+
     @Before
     fun setUp() {
         hiltRule.inject()
         every { messageRepo.getLatestMessagePerConversation() } returns flowOf(emptyList())
         every { deviceRepo.getAllDevices() }                    returns flowOf(emptyList())
         every { nearbyRepo.connectionStates }                   returns MutableStateFlow(emptyMap())
+        every { nearbyRepo.discoveredDevices }                  returns MutableStateFlow(emptyList())
+        every { userProfileManager.getDisplayName() }           returns "Harsh"
+        every { userProfileManager.displayNameFlow }            returns MutableStateFlow("Harsh")
     }
 
     @Test
-    fun emptyState_showsNoActiveChannels() {
+    fun emptyState_showsNoConversations() {
         composeRule.setContent {
             HomeScreen(onConversationClick = { _, _ -> })
         }
 
-        composeRule.onNodeWithText("No active channels yet").assertIsDisplayed()
+        composeRule.onNodeWithText("No conversations yet").assertIsDisplayed()
     }
 
     @Test
-    fun header_showsMeshActive() {
+    fun header_showsMeshReady() {
         composeRule.setContent {
             HomeScreen(onConversationClick = { _, _ -> })
         }
 
-        composeRule.onNodeWithText("MESH ACTIVE").assertIsDisplayed()
+        composeRule.onNodeWithText("Mesh Network Ready").assertIsDisplayed()
     }
 
     @Test
@@ -101,7 +108,6 @@ class HomeScreenTest {
             HomeScreen(onConversationClick = { _, _ -> })
         }
 
-        composeRule.onNodeWithText("0 PEERS").assertIsDisplayed()
-        composeRule.onNodeWithText("SECURE MESH ACTIVE").assertIsDisplayed()
+        composeRule.onNodeWithText("0 nearby peers in range").assertIsDisplayed()
     }
 }

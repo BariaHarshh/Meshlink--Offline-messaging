@@ -63,6 +63,10 @@ class ChatScreenTest {
     @JvmField
     val nearbyRepo: NearbyRepository = mockk(relaxed = true)
 
+    @BindValue
+    @JvmField
+    val userProfileManager: com.meshlink.app.domain.repository.UserProfileManager = mockk(relaxed = true)
+
     private val testEndpointId = "test-endpoint-1"
     private val testDeviceName = "TestDevice"
 
@@ -73,6 +77,8 @@ class ChatScreenTest {
         every { nearbyRepo.peerDeviceIdForEndpoint(any()) } returns null
         every { nearbyRepo.currentEndpointForName(any()) }  returns null
         every { messageRepo.getMessagesByConversation(any()) } returns flowOf(emptyList())
+        every { userProfileManager.getDisplayName() } returns "Harsh"
+        every { userProfileManager.displayNameFlow }  returns MutableStateFlow("Harsh")
     }
 
     private fun launchChatScreen(
